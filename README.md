@@ -115,6 +115,11 @@ with a desktop entry and an icon, so Klip appears in the applications menu. `PRE
 else (`make install PREFIX=~/.local`), and `make run` starts it straight from the build tree without
 installing anything.
 
+`sudo make uninstall` takes those three files back off again. It goes by the list CMake wrote the last
+time you installed, so the prefix does not have to be named a second time, and the directories they sat
+in are left alone because they belong to the system rather than to Klip. Underneath it is
+`cmake --build <build dir> --target uninstall`, which is the way in from a preset build.
+
 If you cloned without `--recurse-submodules`, `git submodule update --init --recursive` puts that right.
 
 **Reporting a bug? Build `make BUILD_TYPE=RelWithDebInfo` instead.** Release compiles logging out and

@@ -60,6 +60,18 @@ add_subdirectory(src/capture)
 add_subdirectory(src/encode)
 add_subdirectory(src/app)
 
+# Guarded like the install rules it undoes: a parent vendoring Klip uninstalls its own application, not
+# this one. Top level rather than beside those rules in src/app, because the manifest it reads records
+# what every subdirectory installed.
+if(PROJECT_IS_TOP_LEVEL)
+	add_custom_target(uninstall
+		COMMAND ${CMAKE_COMMAND}
+			-DKLIP_INSTALL_MANIFEST=${CMAKE_BINARY_DIR}/install_manifest.txt
+			-P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/uninstall.cmake
+		COMMENT "Removing the files that install recorded"
+		VERBATIM)
+endif()
+
 message(STATUS "[Klip] CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
 message(STATUS "[Klip] CMAKE_GENERATOR = ${CMAKE_GENERATOR}")
 message(STATUS "[Klip] CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")

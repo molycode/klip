@@ -4,6 +4,7 @@
 #   make                 build (Release)
 #   make run             build, then run it from the build tree
 #   make install         build, then install to $(PREFIX)
+#   make uninstall       remove the files that install wrote
 #   make debug           build with assertions and no optimisation
 #   make clean           remove this build type's directory
 #
@@ -18,7 +19,7 @@ BUILD_DIR  ?= build/$(BUILD_TYPE)
 # Ninja is not a wall for someone who only wants the binary.
 GENERATOR := $(shell command -v ninja >/dev/null 2>&1 && echo Ninja || echo "Unix Makefiles")
 
-.PHONY: all build install run debug clean
+.PHONY: all build install uninstall run debug clean
 
 all: build
 
@@ -33,6 +34,10 @@ build: $(BUILD_DIR)/CMakeCache.txt
 
 install: build
 	cmake --install $(BUILD_DIR) --prefix $(PREFIX)
+
+# Not a dependency of build: there is nothing to compile in order to delete what is already installed.
+uninstall:
+	cmake --build $(BUILD_DIR) --target uninstall
 
 run: build
 	$(BUILD_DIR)/src/app/klip
