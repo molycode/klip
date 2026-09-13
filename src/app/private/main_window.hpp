@@ -154,6 +154,7 @@ private:
 	uint64_t m_numMicrophoneBuffers{ 0 };
 
 	QElapsedTimer m_clock;
+	qint64        m_firstByteMs{ -1 };
 	QString         m_currentPath;
 	Encode::SRegion m_region;
 };

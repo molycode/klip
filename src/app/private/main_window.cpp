@@ -1098,6 +1098,7 @@ void CMainWindow::StartRecording()
 			if (started)
 			{
 				m_clock.start();
+				m_firstByteMs = -1;
 				m_pTimer->start();
 				m_pRecord->setText(tr("Stop"));
 				m_pStatus->setText(tr("Recording"));
@@ -1235,10 +1236,19 @@ void CMainWindow::OnTick()
 {
 	SSessionStats const stats{ m_session.GetStats() };
 
-	qint64 const      elapsedMs{ m_clock.elapsed() };
+	qint64 const elapsedMs{ m_clock.elapsed() };
+
+	// Bytes trail the clock while the encode and mux pipeline fills, and dividing by the wall clock
+	// would read low for the whole recording rather than only at the start.
+	if (m_firstByteMs < 0 && stats.bytesWritten > 0)
+	{
+		m_firstByteMs = elapsedMs;
+	}
+
+	qint64 const      writingMs{ m_firstByteMs < 0 ? 0 : elapsedMs - m_firstByteMs };
 	QString const     elapsed{ FormatDuration(elapsedMs) };
 	QString const     written{ FormatBytes(stats.bytesWritten) };
-	SThroughput const rate{ FormatThroughput(stats.bytesWritten, elapsedMs / 1000) };
+	SThroughput const rate{ FormatThroughput(stats.bytesWritten, writingMs / 1000) };
 
 	QString const detail{ rate.perMinute.isEmpty()
 		                      ? written
