@@ -176,3 +176,30 @@ The comments say so plainly, on purpose: they are the map of what has to split, 
 
 **What would settle it:** the port itself. The first question it asks is whether `SFrame` can describe a
 D3D11 texture without naming one, and the second is what a quality ladder means when the encoder is NVENC.
+
+## Klip installs from source, and uninstalling it needs the build tree to still be there
+
+`make install` puts three files on the prefix -- the binary, `klip.desktop` and the scalable icon -- through
+`GNUInstallDirs`, so the layout a package would want is already the layout it writes. What it does not give
+anyone is a way to remove it that does not involve the source: the record is `install_manifest.txt` inside
+the build directory, so deleting the tree after installing leaves three files to be found by hand.
+
+The audience that would notice is the one that should not be compiling in the first place. The dependency
+line is thirteen packages before a single object is built -- `cmake` alone pulls about 68 of them and
+`qt6-base-dev` about 265 on Ubuntu 24.04 -- and every one of them has to stay installed afterwards.
+
+**The licensing is the part that is not free.** Ubuntu's own `libavcodec.so.60` is configured
+`--enable-gpl`, measured rather than assumed, while `scripts/build_ffmpeg.sh` passes `--disable-gpl` for the
+reason its comment gives. The source path never has to care, because whoever compiles is whoever runs it and
+nothing is distributed. A `.deb` or an AppImage is distribution, so it either links an FFmpeg built the way
+that script builds it, or the binary it ships goes out under the GPL. Qt is LGPL and dynamically linked,
+which the current stance already satisfies; a bundle has to keep satisfying it.
+
+**Flatpak looks like the easy one and is not.** Capture goes through `xdg-desktop-portal`, which is exactly
+what a sandbox wants, but audio does not: Klip opens a PipeWire stream itself and there is no audio portal
+behind it. What a sandboxed build does to that is already open above, and packaging is what forces it.
+
+**What would settle it:** a `.deb` built from the install rules that already exist -- CPack reads them as
+they are -- linked against an FFmpeg from `scripts/build_ffmpeg.sh`, then installed and removed on a machine
+that has never seen the source. That answers the removal question, the licensing question and the dependency
+question together, and leaves the sandbox one to a Flatpak that would come after it.
