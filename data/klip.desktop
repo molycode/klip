@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Klip
+GenericName=Screen Recorder
+Comment=Record your screen, a window, or a rectangle to a video file
+Exec=klip
+Icon=klip
+Terminal=false
+Categories=AudioVideo;Video;Recorder;
+Keywords=record;screen;capture;video;screencast;
+StartupNotify=true

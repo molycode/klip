@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Klip</title>
+  <rect x="2" y="2" width="60" height="60" rx="13" fill="#2c2f33"/>
+  <rect x="11.5" y="17.5" width="41" height="29" rx="6"
+        fill="none" stroke="#dcdcdc" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="8" fill="#e13c3c"/>
+</svg>

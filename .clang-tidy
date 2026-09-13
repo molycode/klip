@@ -1,0 +1,38 @@
+# The bug-finding checks only. Style is the compiler's job here and the house rules' job in review; this
+# file exists to catch defects, so a check that argues about taste is off rather than argued with.
+#
+# Every exclusion below is a check that fires on correct code in this tree. If one starts finding real
+# defects, turn it back on -- none of them are off because the findings were tedious.
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  performance-*,
+  misc-*,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-return-const-ref-from-parameter,
+  -bugprone-exception-escape,
+  -misc-include-cleaner,
+  -misc-unused-parameters,
+  -misc-const-correctness,
+  -misc-use-internal-linkage,
+  -misc-no-recursion,
+  -misc-non-private-member-variables-in-classes
+
+# Klip's own headers. Qt, FFmpeg, PipeWire and tge-core are not ours to fix, and tge-core's enums trip
+# performance-enum-size from here.
+HeaderFilterRegex: 'src/(app|capture|encode)/'
+
+# clang-analyzer-optin.core.EnumCastOutOfRange: PipeWire, FFmpeg and libva flag enums are meant to be
+#   OR'd, and every OR produces a value that is not a named enumerator.
+# bugprone-easily-swappable-parameters: every (width, height) and (x, y) pair trips it.
+# bugprone-return-const-ref-from-parameter: the QDBusArgument streaming operators must return the
+#   parameter, which is how Qt chains them.
+# bugprone-exception-escape: main. The app target links Qt with -fexceptions, but the project does not use
+#   exceptions and an escape would terminate either way.
+# misc-include-cleaner: 448 findings, and it disagrees with the include rules this project follows.
+# misc-unused-parameters: callback and override signatures are mandated by the interface they implement.
+# misc-const-correctness: cannot see Qt's non-const API through a pointer, nor a later move.
+# misc-use-internal-linkage: SPortalStream is named by Q_DECLARE_METATYPE, and its streaming operators
+#   have to sit beside it for argument-dependent lookup to find them.

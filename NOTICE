@@ -1,0 +1,42 @@
+Klip
+Copyright (c) 2026 moly
+
+This software is released under the MIT License; see LICENSE.
+
+Klip links the following third-party libraries, which carry their own terms.
+Klip's own source remains under the MIT License.
+
+--------------------------------------------------------------------------------
+Qt 6
+--------------------------------------------------------------------------------
+Klip uses the Qt framework (Qt Core, Qt DBus, Qt Gui, Qt Network and Qt
+Widgets) under the GNU Lesser General Public License version 3.
+
+    https://www.qt.io/
+    https://www.gnu.org/licenses/lgpl-3.0.html
+
+Qt is linked dynamically and is not modified or redistributed with Klip. A
+recipient may replace the Qt libraries with their own interface-compatible
+build.
+
+--------------------------------------------------------------------------------
+FFmpeg
+--------------------------------------------------------------------------------
+Klip uses FFmpeg (libavcodec, libavfilter, libavformat, libavutil,
+libswresample and libswscale) under the GNU Lesser General Public License
+version 2.1 or later.
+
+    https://ffmpeg.org/
+    https://www.gnu.org/licenses/lgpl-2.1.html
+
+FFmpeg is linked dynamically and is not modified or redistributed with Klip.
+Klip requires an FFmpeg built without --enable-gpl: a GPL-configured libavcodec
+would place any distributed Klip binary under the GPL.
+
+--------------------------------------------------------------------------------
+PipeWire and libva
+--------------------------------------------------------------------------------
+Klip uses PipeWire under the MIT License and libva under the MIT License.
+
+    https://pipewire.org/
+    https://github.com/intel/libva

@@ -1,0 +1,57 @@
+# Build directories
+build/
+cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+CMakeUserPresets.json
+
+# Build output
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+
+# The logger writes relative to the working directory, so running a binary from the repo root lands here
+logs/
+configs/
+*.log
+
+# Recordings made while testing
+*.mp4
+*.mkv
+
+# IDE and editor files
+.vscode/
+.idea/
+.vs/
+.qtcreator/
+CMakeLists.txt.user
+*.autosave
+*.user
+*.creator.user*
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+.cache/
+
+# Session scratch, not for the repo
+tasks/
+
+# Python bytecode from importing the scripts in tests
+__pycache__/
+*.pyc

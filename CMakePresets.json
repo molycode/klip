@@ -1,0 +1,115 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-gcc-debug",
+      "displayName": "linux_gcc_debug",
+      "description": "Debug build with GCC",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/gcc-Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/gcc.cmake"
+      }
+    },
+    {
+      "name": "linux-gcc-release",
+      "displayName": "linux_gcc_release",
+      "description": "Release build with GCC",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/gcc-Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/gcc.cmake"
+      }
+    },
+    {
+      "name": "linux-gcc-relwithdebinfo",
+      "displayName": "linux_gcc_relwithdebinfo",
+      "description": "Optimised build with debug symbols, GCC",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/gcc-RelWithDebInfo",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/gcc.cmake"
+      }
+    },
+    {
+      "name": "linux-clang-debug",
+      "displayName": "linux_clang_debug",
+      "description": "Debug build with Clang",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/clang-Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/clang.cmake"
+      }
+    },
+    {
+      "name": "linux-clang-release",
+      "displayName": "linux_clang_release",
+      "description": "Release build with Clang",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/clang-Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/clang.cmake"
+      }
+    },
+    {
+      "name": "linux-clang-relwithdebinfo",
+      "displayName": "linux_clang_relwithdebinfo",
+      "description": "Optimised build with debug symbols, Clang",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/clang-RelWithDebInfo",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/clang.cmake"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-gcc-debug",
+      "configurePreset": "linux-gcc-debug"
+    },
+    {
+      "name": "linux-gcc-release",
+      "configurePreset": "linux-gcc-release"
+    },
+    {
+      "name": "linux-gcc-relwithdebinfo",
+      "configurePreset": "linux-gcc-relwithdebinfo"
+    },
+    {
+      "name": "linux-clang-debug",
+      "configurePreset": "linux-clang-debug"
+    },
+    {
+      "name": "linux-clang-release",
+      "configurePreset": "linux-clang-release"
+    },
+    {
+      "name": "linux-clang-relwithdebinfo",
+      "configurePreset": "linux-clang-relwithdebinfo"
+    }
+  ]
+}
