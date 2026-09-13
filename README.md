@@ -106,17 +106,34 @@ package for Debian, Fedora and Arch before it stops.
 ```bash
 git clone --recurse-submodules <url> klip
 cd klip
+make
+sudo make install
+```
+
+`make` builds Release and prints where the binary landed; `make install` puts it on the prefix along
+with a desktop entry and an icon, so Klip appears in the applications menu. `PREFIX` chooses somewhere
+else (`make install PREFIX=~/.local`), and `make run` starts it straight from the build tree without
+installing anything.
+
+If you cloned without `--recurse-submodules`, `git submodule update --init --recursive` puts that right.
+
+**Reporting a bug? Build `make BUILD_TYPE=RelWithDebInfo` instead.** Release compiles logging out and
+carries no symbols, so a crash there gives an address and nothing to read beside it. RelWithDebInfo is
+optimised and keeps both, and writes a log to `logs/` next to wherever you started it. Send that, and
+the output of `klip --version`.
+
+### Working on Klip
+
+The Makefile is a convenience over CMake; the presets are the real interface.
+
+```bash
 cmake --preset linux-gcc-debug
 cmake --build --preset linux-gcc-debug
 ```
 
-The executable is `build/gcc-Debug/src/app/klip`. There is no install step — Klip runs from the build
-tree.
-
 Presets: `linux-{gcc,clang}-{debug,release,relwithdebinfo}`. They use whatever `gcc`/`clang` is on
 `PATH`; the pinned toolchains live in `CMakeUserPresets.json`, which is machine-specific and not in the
-repo. If you cloned without `--recurse-submodules`, `git submodule update --init --recursive` puts that
-right.
+repo.
 
 If your distribution's compiler is older than GCC 13, install a newer one and hand it to the preset,
 which keeps the generator and the build type that configuring by hand would drop:
