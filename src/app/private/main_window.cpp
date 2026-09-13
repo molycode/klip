@@ -48,6 +48,7 @@ namespace Klip
 namespace
 {
 constexpr int      TickMilliseconds{ 250 };
+constexpr qint64   RateSettleSeconds{ 3 };
 constexpr int      MeterMilliseconds{ 40 };
 constexpr int      GainValueWidth{ 52 };
 constexpr int      WindowWidth{ 600 };
@@ -126,6 +127,31 @@ QString FormatBytes(uint64_t bytes)
 	double const mebibytes{ static_cast<double>(bytes) / (1024.0 * 1024.0) };
 
 	return QStringLiteral("%1 MiB").arg(mebibytes, 0, 'f', 1);
+}
+
+struct SThroughput final
+{
+	QString perMinute;
+	QString perHour;
+};
+
+SThroughput FormatThroughput(uint64_t bytes, qint64 elapsedSeconds)
+{
+	SThroughput result;
+
+	if (elapsedSeconds >= RateSettleSeconds)
+	{
+		double const perMinute{ static_cast<double>(bytes) / (1024.0 * 1024.0) * 60.0
+		                        / static_cast<double>(elapsedSeconds) };
+		double const perHour{ perMinute * 60.0 };
+
+		result.perMinute = QStringLiteral("%1 MiB/min").arg(perMinute, 0, 'f', 1);
+		result.perHour   = perHour >= 1024.0
+			                   ? QStringLiteral("%1 GiB/h").arg(perHour / 1024.0, 0, 'f', 1)
+			                   : QStringLiteral("%1 MiB/h").arg(perHour, 0, 'f', 0);
+	}
+
+	return result;
 }
 } // namespace
 
@@ -1209,11 +1235,26 @@ void CMainWindow::OnTick()
 {
 	SSessionStats const stats{ m_session.GetStats() };
 
-	QString const elapsed{ FormatDuration(m_clock.elapsed()) };
+	qint64 const      elapsedMs{ m_clock.elapsed() };
+	QString const     elapsed{ FormatDuration(elapsedMs) };
+	QString const     written{ FormatBytes(stats.bytesWritten) };
+	SThroughput const rate{ FormatThroughput(stats.bytesWritten, elapsedMs / 1000) };
+
+	QString const detail{ rate.perMinute.isEmpty()
+		                      ? written
+		                      : QStringLiteral("%1 \u00b7 %2 \u00b7 %3")
+		                            .arg(written, rate.perMinute, rate.perHour) };
+
+	// GNOME's indicator extension renders the label but declines to render a tooltip, so this is the
+	// only figure visible while recording -- and the window is hidden then, so it is the hourly one.
+	QString const label{ rate.perHour.isEmpty()
+		                     ? elapsed
+		                     : QStringLiteral("%1 \u00b7 %2").arg(elapsed, rate.perHour) };
 
 	m_pElapsed->setText(elapsed);
-	m_pStatus->setText(FormatBytes(stats.bytesWritten));
-	m_pTray->SetLabel(elapsed);
+	m_pStatus->setText(detail);
+	m_pTray->SetLabel(label);
+	m_pTray->SetDetail(QStringLiteral("%1 \u00b7 %2").arg(elapsed, detail));
 }
 
 //////////////////////////////////////////////////////////////////////////

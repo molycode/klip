@@ -191,6 +191,7 @@ void CTrayIcon::SetRecording(bool recording)
 		if (!recording)
 		{
 			SetLabel(QStringLiteral("Klip"));
+			SetDetail(QString{});
 		}
 	}
 }
@@ -205,6 +206,20 @@ void CTrayIcon::SetLabel(QString const& label)
 		if (m_registered)
 		{
 			Q_EMIT m_pAdaptor->XAyatanaNewLabel(m_label, m_pAdaptor->XAyatanaLabelGuide());
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CTrayIcon::SetDetail(QString const& detail)
+{
+	if (m_detail != detail)
+	{
+		m_detail = detail;
+
+		if (m_registered)
+		{
+			Q_EMIT m_pAdaptor->NewToolTip();
 		}
 	}
 }

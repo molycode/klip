@@ -36,7 +36,8 @@ TrayImageList CTrayAdaptor::IconPixmap() const
 STrayToolTip CTrayAdaptor::ToolTip() const
 {
 	STrayToolTip toolTip;
-	toolTip.title = m_pOwner->TitleText();
+	toolTip.title       = m_pOwner->TitleText();
+	toolTip.description = m_pOwner->DetailText();
 
 	return toolTip;
 }
@@ -57,7 +58,7 @@ QString CTrayAdaptor::XAyatanaLabel() const
 QString CTrayAdaptor::XAyatanaLabelGuide() const
 {
 	// The widest text the label will ever hold, so the panel reserves room and stops twitching.
-	return QStringLiteral("00:00:00");
+	return QStringLiteral("00:00:00 \u00b7 999.9 GiB/h");
 }
 
 //////////////////////////////////////////////////////////////////////////

@@ -30,10 +30,12 @@ public:
 	void SetRecording(bool recording);
 
 	void SetLabel(QString const& label);
+	void SetDetail(QString const& detail);
 
 	TrayImageList IconImages() const;
 	QString       TitleText() const;
 	QString       LabelText() const { return m_label; }
+	QString       DetailText() const { return m_detail; }
 
 Q_SIGNALS:
 
@@ -48,6 +50,7 @@ private:
 	QObject*      m_pMenuObject{ nullptr };
 	QString       m_serviceName;
 	QString       m_label{ QStringLiteral("Klip") };
+	QString       m_detail;
 	bool          m_recording{ false };
 	bool          m_registered{ false };
 };
