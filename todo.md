@@ -94,10 +94,13 @@ exactly why it proves nothing.
 75 rather than 60, and that the delivered rate follows. Not worth scrambling a desktop for on its own;
 worth doing the first time this runs on high refresh hardware.
 
-## The file size estimate is off by a factor, not by a margin
+## The size estimate is measured and shown, but not yet remembered
 
 The line under Quality multiplies a bits-per-pixel table measured on this hardware by a frame rate and a
-size. It used to say "up to about N MiB per minute", which read as a ceiling. It is not one.
+size. It used to say "up to about N MiB per minute", which read as a ceiling. It is not one, and it cannot
+be: `rc_mode` is CQP, so the encoder holds quality fixed and lets the bitrate follow the content. File size
+is an output, not a setting -- the same reason you cannot know how large a JPEG will be before seeing the
+picture.
 
 Measured on a 103 second window capture of a game at Best quality, H.264, uncapped: the file came out at
 60 MiB per minute where the line said 17.4, and the encoder spent **661** bits per pixel where the table
@@ -105,17 +108,24 @@ says **78**. That is 8.5x, on content the table was never calibrated for -- it w
 which is mostly static, while a game repaints every pixel of every frame in the dark gradients and texture
 that cost the most.
 
-The wording no longer claims a ceiling, and the line no longer prints the screen's resolution when a window
-or a region is being recorded, since neither has a size until the portal answers. Both were misleading in
-the same direction as the table, and the dimension error hid part of it: the hint counted the whole screen
-at 4.67 Mpx while the window was 2.23, so correcting the pixels alone takes the same prediction from 3.4x
-under to 7x under.
+**Measured and shown, now.** A recording displays what it is actually costing: bytes so far, MiB per
+minute, and what an hour comes to at that rate, in the window and on the tray. The rate is deliberately in
+the same unit the hint predicts in, so the gap between 17.4 promised and 60 delivered is visible rather
+than silent. Two content-dependent unknowns sit behind that gap and neither is about resolution: how many
+bits a frame costs under CQP, and how many frames the compositor sends at all, since the frame rate is a
+ceiling and a still screen sends far fewer.
 
-Klip already knows the exact answer after every recording: bytes, duration, frame count, codec and level.
+**What is left is remembering it.** Klip knows bytes, duration, frame count, codec and quality at the end
+of every recording, so persisting bits per pixel per frame keyed on (codec, quality) -- 15 cells -- would
+replace the seeded table with the user's own content. Store it with the sample count beside it, so the
+line can stop hedging once it is speaking from measurement rather than from a table; an exponential
+average keeps it honest for somebody who switches from filming a desktop to filming games.
 
-**What would settle it:** learning the figure from the user's own finished recordings, per codec and
-quality, and falling back to the seeded table only until the first one exists. One recording of whatever
-that user actually films is worth more than any table measured here.
+That belongs in `$XDG_STATE_HOME/klip`, not in `Klip.conf`. It is derived measurement rather than
+preference: nobody sets it, deleting it should cost nothing but a recalibration, and it must never sync
+between machines, because the figure folds in the GPU's encoder as well as the content.
+
+**What would settle it:** the persistence and the fallback. The measuring half exists.
 
 ## A scaled display can only be recorded at its logical size
 
