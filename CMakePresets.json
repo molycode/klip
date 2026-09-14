@@ -53,6 +53,36 @@
       }
     },
     {
+      "name": "linux-gcc-asan",
+      "displayName": "linux_gcc_asan",
+      "description": "AddressSanitizer with GCC, on top of RelWithDebInfo",
+      "inherits": "linux-gcc-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/gcc-asan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "address"
+      }
+    },
+    {
+      "name": "linux-gcc-ubsan",
+      "displayName": "linux_gcc_ubsan",
+      "description": "UndefinedBehaviorSanitizer with GCC, on top of RelWithDebInfo",
+      "inherits": "linux-gcc-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/gcc-ubsan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "undefined"
+      }
+    },
+    {
+      "name": "linux-gcc-tsan",
+      "displayName": "linux_gcc_tsan",
+      "description": "ThreadSanitizer with GCC, on top of RelWithDebInfo",
+      "inherits": "linux-gcc-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/gcc-tsan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "thread"
+      }
+    },
+    {
       "name": "linux-clang-debug",
       "displayName": "linux_clang_debug",
       "description": "Debug build with Clang",
@@ -84,6 +114,36 @@
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/clang.cmake"
       }
+    },
+    {
+      "name": "linux-clang-asan",
+      "displayName": "linux_clang_asan",
+      "description": "AddressSanitizer with Clang, on top of RelWithDebInfo",
+      "inherits": "linux-clang-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/clang-asan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "address"
+      }
+    },
+    {
+      "name": "linux-clang-ubsan",
+      "displayName": "linux_clang_ubsan",
+      "description": "UndefinedBehaviorSanitizer with Clang, on top of RelWithDebInfo",
+      "inherits": "linux-clang-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/clang-ubsan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "undefined"
+      }
+    },
+    {
+      "name": "linux-clang-tsan",
+      "displayName": "linux_clang_tsan",
+      "description": "ThreadSanitizer with Clang, on top of RelWithDebInfo",
+      "inherits": "linux-clang-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/clang-tsan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "thread"
+      }
     }
   ],
   "buildPresets": [
@@ -100,6 +160,18 @@
       "configurePreset": "linux-gcc-relwithdebinfo"
     },
     {
+      "name": "linux-gcc-asan",
+      "configurePreset": "linux-gcc-asan"
+    },
+    {
+      "name": "linux-gcc-ubsan",
+      "configurePreset": "linux-gcc-ubsan"
+    },
+    {
+      "name": "linux-gcc-tsan",
+      "configurePreset": "linux-gcc-tsan"
+    },
+    {
       "name": "linux-clang-debug",
       "configurePreset": "linux-clang-debug"
     },
@@ -110,6 +182,18 @@
     {
       "name": "linux-clang-relwithdebinfo",
       "configurePreset": "linux-clang-relwithdebinfo"
+    },
+    {
+      "name": "linux-clang-asan",
+      "configurePreset": "linux-clang-asan"
+    },
+    {
+      "name": "linux-clang-ubsan",
+      "configurePreset": "linux-clang-ubsan"
+    },
+    {
+      "name": "linux-clang-tsan",
+      "configurePreset": "linux-clang-tsan"
     }
   ]
 }
