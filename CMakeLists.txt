@@ -7,7 +7,7 @@ if(PROJECT_IS_TOP_LEVEL)
 	set(CMAKE_CXX_STANDARD 23)
 	set(CMAKE_CXX_STANDARD_REQUIRED ON)
 	set(CMAKE_CXX_EXTENSIONS OFF)
-	set(CMAKE_CONFIGURATION_TYPES Debug Release)
+	set(CMAKE_CONFIGURATION_TYPES Debug RelWithDebInfo Release)
 	# No target here declares a module, and leaving this on makes every Clang build need clang-scan-deps,
 	# which most distributions ship in a separate package.
 	set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
