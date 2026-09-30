@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-FFMPEG_TAG="${FFMPEG_TAG:-n8.1.2}"
+FFMPEG_TAG="${FFMPEG_TAG:-n9.0.2}"
 TOOLS_DIR="${TOOLS_DIR:-${HOME}/.local/opt}"
 PREFIX="${PREFIX:-${TOOLS_DIR}/ffmpeg-${FFMPEG_TAG#n}-lgpl}"
 SRC_DIR="${SRC_DIR:-${TOOLS_DIR}/src/ffmpeg}"
