@@ -20,6 +20,16 @@ else()
 	message(STATUS "[Klip] FFmpeg: system packages via pkg-config")
 endif()
 
+# pkg_check_modules and its find_library calls answer from the cache, which would keep the previous root's FFmpeg.
+if(NOT "${KLIP_FFMPEG_ROOT}" STREQUAL "${KlipFFmpegCheckedRoot}")
+	unset(KlipFFmpeg_FOUND CACHE)
+	get_cmake_property(KlipCachedLibraries CACHE_VARIABLES)
+	list(FILTER KlipCachedLibraries INCLUDE REGEX "^pkgcfg_lib_KlipFFmpeg_")
+	foreach(KlipCachedLibrary IN LISTS KlipCachedLibraries)
+		unset(${KlipCachedLibrary} CACHE)
+	endforeach()
+endif()
+
 pkg_check_modules(KlipFFmpeg IMPORTED_TARGET
 	libavcodec>=60
 	libavfilter>=9
@@ -36,6 +46,8 @@ if(NOT KlipFFmpeg_FOUND)
 		"  Arch           sudo pacman -S ffmpeg\n"
 		"Or point KLIP_FFMPEG_ROOT at a build produced by scripts/build_ffmpeg.sh.")
 endif()
+
+set(KlipFFmpegCheckedRoot "${KLIP_FFMPEG_ROOT}" CACHE INTERNAL "")
 
 pkg_check_modules(KlipVaapi IMPORTED_TARGET
 	libva>=1.14
