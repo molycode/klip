@@ -325,8 +325,9 @@ void CStreamImpl::HandleParamChanged(uint32_t id, spa_pod const* pParam)
 			{
 				if (pModifier != nullptr)
 				{
-					modifier = static_cast<uint64_t>(
-						*static_cast<int64_t const*>(SPA_POD_BODY_CONST(&pModifier->value)));
+					// Not the raw property body: the settled value can arrive as a SPA_CHOICE_None, whose
+					// header reads as 0 -- LINEAR -- and scrambles every tiled buffer.
+					modifier = info.info.raw.modifier;
 					useDmaBuf = true;
 				}
 
