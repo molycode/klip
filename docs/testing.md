@@ -19,6 +19,13 @@ Launches Klip, presses Record over AT-SPI, records, stops through the tray, and 
 and a decode on the card. Point it at binaries with `--ffprobe` / `--ffmpeg`, or `$KLIP_FFPROBE` /
 `$KLIP_FFMPEG`, since a distribution FFmpeg may not decode what Klip writes.
 
+The content gate holds the picture itself to a portal screenshot taken halfway through: both shrunk to
+160x90 grey, and the best correlation among the frames around that moment must reach 0.8. Measured: a
+correct recording scores 1.00 on a still desktop and 0.98 with a 60 fps test pattern moving on it, while
+a DMA-BUF imported with the wrong modifier -- tiles read as linear -- scores -0.02, having passed every
+other gate including the decode. It compares luma only, so a red and blue swap still passes, and it is
+skipped for a window source and for a screenshot spanning more than one monitor.
+
 `--quit` ends through the tray menu rather than `SIGTERM`. Without it no exit path runs at all, every
 `Terminate` is skipped and a leak checker reports nothing, so pass it whenever the run is being watched by
 a tool.

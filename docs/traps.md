@@ -130,3 +130,7 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
   on `ffprobe`: codec, dimensions, duration and packet count. `scripts/smoke_test.py` does that
   unattended and counts packets rather than frames -- `-count_frames` needs a decoder, and an FFmpeg
   without libdav1d reads every AV1 file Klip writes as zero frames. See [testing.md](testing.md).
+- **A recording that decodes cleanly can still be noise.** After the move to Ubuntu 26.04, every frame
+  came out as a grid of scrambled tiles -- Klip read the settled modifier as LINEAR while the compositor
+  had rendered tiled -- and codec, dimensions, duration, packets and decode all passed. Only looking at
+  the picture catches it, which is what the smoke test's content gate is for.

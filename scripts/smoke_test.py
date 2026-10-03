@@ -2,14 +2,16 @@
 #
 # Records the screen with nothing clicked, then gates the file against what Klip said it wrote: codec,
 # dimensions, duration and packet count. A zero-frame MP4 is a valid MP4, so a run that did not crash
-# proves nothing on its own.
+# proves nothing on its own -- and neither does a file that decodes, since a buffer read with the wrong
+# tiling decodes perfectly into noise. So a screenshot taken mid-recording is what the picture is held to.
 #
-# It films the whole desktop for as long as --seconds asks. The recording lands in a temporary directory
-# and is deleted unless a gate fails or --keep is given.
+# It films the whole desktop for as long as --seconds asks. The recording and the screenshot land in a
+# temporary directory and are deleted unless a gate fails or --keep is given.
 #
 # Needs a screen cast grant -- the screen source keeps its restore token, so the portal picker appears
 # only the first time -- python3-gi with the Atspi typelib, and ffprobe, from --ffprobe, $KLIP_FFPROBE or
-# PATH. ffmpeg, found the same way, adds a decode check on the card; without it that gate is skipped.
+# PATH. ffmpeg, found the same way, adds the decode and content checks on the card; without it both are
+# skipped.
 
 import argparse
 import json
@@ -17,17 +19,24 @@ import os
 import re
 import shutil
 import signal
+import statistics
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 REPO = Path(__file__).resolve().parent.parent
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "klip" / "Klip.conf"
 
 DIRECTORY_SECTION = "output"
 DIRECTORY_KEY = "directory"
+
+CONTENT_WIDTH = 160
+CONTENT_HEIGHT = 90
+CONTENT_SPAN = 3.0
+CONTENT_THRESHOLD = 0.8
 
 
 def find_klip(explicit):
@@ -312,7 +321,121 @@ def decodes(ffmpeg, path, device, seconds):
 	return call.returncode == 0 and not complaints, complaints[0] if complaints else ""
 
 
-def evaluate(ffprobe, ffmpeg, recording, claimed, codec, seconds, tolerance, wants_audio):
+def take_screenshot(directory):
+	"""Answers (path, None) with the image moved into directory, or (None, why). The portal saves into the
+	user's Pictures, so the file is moved out before anything else can fail."""
+	import gi
+
+	gi.require_version("Gio", "2.0")
+	from gi.repository import Gio, GLib
+
+	bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+	token = f"klip_smoke_{os.getpid()}"
+	sender = bus.get_unique_name()[1:].replace(".", "_")
+	handle = f"/org/freedesktop/portal/desktop/request/{sender}/{token}"
+	loop = GLib.MainLoop()
+	answer = {}
+
+	def on_response(connection, sender_name, path, interface, signal_name, parameters):
+		code, results = parameters.unpack()
+		answer["code"] = code
+		answer["uri"] = results.get("uri")
+		loop.quit()
+
+	# Subscribed before the call: the response can arrive before call_sync returns.
+	subscription = bus.signal_subscribe("org.freedesktop.portal.Desktop", "org.freedesktop.portal.Request",
+	                                    "Response", handle, None, Gio.DBusSignalFlags.NO_MATCH_RULE,
+	                                    on_response)
+
+	try:
+		bus.call_sync("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
+		              "org.freedesktop.portal.Screenshot", "Screenshot",
+		              GLib.Variant("(sa{sv})", ("", {"handle_token": GLib.Variant("s", token),
+		                                             "interactive": GLib.Variant("b", False)})),
+		              None, Gio.DBusCallFlags.NONE, -1, None)
+		GLib.timeout_add_seconds(15, loop.quit)
+		loop.run()
+	except GLib.Error as error:
+		answer["error"] = error.message
+	finally:
+		bus.signal_unsubscribe(subscription)
+
+	reference = None
+	reason = None
+
+	if "error" in answer:
+		reason = f"the Screenshot portal refused the call: {answer['error']}"
+	elif answer.get("code") != 0 or not answer.get("uri"):
+		reason = f"the Screenshot portal answered {answer.get('code', 'nothing within 15s')}"
+	else:
+		saved = Path(unquote(urlparse(answer["uri"]).path))
+		reference = directory / "reference.png"
+		shutil.move(saved, reference)
+
+	return reference, reason
+
+
+def image_size(ffprobe, path):
+	call = subprocess.run([str(ffprobe), "-v", "error", "-show_entries", "stream=width,height", "-of",
+	                       "csv=p=0", str(path)], capture_output=True, text=True)
+	sizes = call.stdout.split(",")
+
+	return (int(sizes[0]), int(sizes[1])) if call.returncode == 0 and len(sizes) == 2 else None
+
+
+def thumbnails(ffmpeg, path, device, start, span):
+	"""Grey CONTENT_WIDTH x CONTENT_HEIGHT frames, ten a second, decoded the way the decode gate does."""
+	args = [str(ffmpeg), "-v", "error", "-hwaccel", "vaapi"]
+
+	if device:
+		args += ["-hwaccel_device", device]
+
+	args += ["-ss", f"{start:.3f}", "-t", f"{span:.3f}", "-i", str(path), "-vf",
+	         f"fps=10,scale={CONTENT_WIDTH}:{CONTENT_HEIGHT}:flags=area", "-f", "rawvideo",
+	         "-pix_fmt", "gray", "-"]
+	pixels = subprocess.run(args, capture_output=True).stdout
+	size = CONTENT_WIDTH * CONTENT_HEIGHT
+
+	return [pixels[offset:offset + size] for offset in range(0, len(pixels) - size + 1, size)]
+
+
+def matches_screenshot(ffprobe, ffmpeg, recording, measured, device, reference, taken_at):
+	"""Correlation rather than difference: the recording is limited range and the screenshot full, which
+	shifts every level without changing the picture -- while scrambled tiles or a black frame share no
+	structure with the screen at all. Best of the frames around the moment, since the desktop moves."""
+	shot = image_size(ffprobe, reference)
+	ratio = measured["width"] / measured["height"]
+	detail = None
+	passed = None
+
+	if shot is None:
+		detail = f"skipped: could not read {reference}"
+	elif abs(shot[0] / shot[1] - ratio) > 0.01:
+		detail = (f"skipped: the screenshot spans {shot[0]}x{shot[1]} and the recording "
+		          f"{measured['width']}x{measured['height']}, so more than one monitor is in it")
+	else:
+		scaled = subprocess.run([str(ffmpeg), "-v", "error", "-i", str(reference), "-vf",
+		                         f"scale={CONTENT_WIDTH}:{CONTENT_HEIGHT}:flags=area", "-f", "rawvideo",
+		                         "-pix_fmt", "gray", "-"], capture_output=True).stdout
+		start = max(0.0, taken_at - CONTENT_SPAN / 2)
+		frames = thumbnails(ffmpeg, recording, device, start, CONTENT_SPAN)
+
+		if len(scaled) != CONTENT_WIDTH * CONTENT_HEIGHT or statistics.pstdev(scaled) < 1.0:
+			detail = "skipped: the screen is too uniform to tell a picture from a broken one"
+		elif not frames:
+			passed = False
+			detail = f"no frames decoded between {start:.1f}s and {start + CONTENT_SPAN:.1f}s"
+		else:
+			best = max(statistics.correlation(frame, scaled) if statistics.pstdev(frame) > 0 else 0.0
+			           for frame in frames)
+			passed = best >= CONTENT_THRESHOLD
+			detail = (f"r={best:.2f} against a screenshot at {taken_at:.1f}s, best of {len(frames)} "
+			          f"frames, needs {CONTENT_THRESHOLD}")
+
+	return passed, detail
+
+
+def evaluate(ffprobe, ffmpeg, recording, claimed, codec, seconds, tolerance, wants_audio, reference):
 	"""Answers one (name, passed, detail) per gate, or None when there is no video stream to read."""
 	measured = probe(ffprobe, recording)
 
@@ -360,6 +483,17 @@ def evaluate(ffprobe, ffmpeg, recording, claimed, codec, seconds, tolerance, wan
 		decoded, complaint = decodes(ffmpeg, recording, claimed.get("device"), window)
 		gates.append(("decode", decoded, complaint or f"first {window}s on "
 		                                              f"{claimed.get('device') or 'the default device'}"))
+
+	shot, taken_at, why_not = reference
+
+	if ffmpeg is None:
+		gates.append(("content", None, "skipped: no ffmpeg, pass --ffmpeg or set $KLIP_FFMPEG"))
+	elif shot is None:
+		gates.append(("content", None, f"skipped: {why_not}"))
+	else:
+		passed, detail = matches_screenshot(ffprobe, ffmpeg, recording, measured, claimed.get("device"),
+		                                    shot, taken_at)
+		gates.append(("content", passed, detail))
 
 	return gates
 
@@ -434,7 +568,17 @@ def run(args):
 
 			return 1
 
-		time.sleep(args.seconds)
+		appeared = time.monotonic()
+		time.sleep(args.seconds / 2)
+
+		if source == "0":
+			asked = time.monotonic()
+			shot, why_not = take_screenshot(directory)
+			reference = (shot, (asked + time.monotonic()) / 2 - appeared, why_not)
+		else:
+			reference = (None, 0.0, "a window recording has no screenshot to compare against")
+
+		time.sleep(max(0.0, args.seconds - (time.monotonic() - appeared)))
 
 		if not stop_via_tray(process.pid):
 			print("the tray would not take SecondaryActivate; the recording is still running",
@@ -474,7 +618,7 @@ def run(args):
 		return 1
 
 	gates = evaluate(ffprobe, ffmpeg, recording, claimed, codec, args.seconds, args.tolerance,
-	                 wants_audio)
+	                 wants_audio, reference)
 
 	if gates is None:
 		print(f"ffprobe found no video stream in {recording}", file=sys.stderr)
@@ -506,7 +650,8 @@ def main():
 	                    help="seconds to wait on the UI, the portal and the file (default 30)")
 	parser.add_argument("--klip", help="the binary to drive (default: the newest under build/)")
 	parser.add_argument("--ffprobe", help="ffprobe to gate with (default: $KLIP_FFPROBE, then PATH)")
-	parser.add_argument("--ffmpeg", help="ffmpeg for the decode check (default: $KLIP_FFMPEG, then PATH)")
+	parser.add_argument("--ffmpeg",
+	                    help="ffmpeg for the decode and content checks (default: $KLIP_FFMPEG, then PATH)")
 	parser.add_argument("--quit", action="store_true",
 	                    help="end through the tray's Quit rather than SIGTERM, so the exit path runs")
 	parser.add_argument("--keep", action="store_true", help="keep the recording even when it passes")
