@@ -71,7 +71,7 @@ of a quiet desktop can come in at half that or less.
 
 ## Requirements
 
-- C++23 compiler — GCC 13+ or Clang 18+. GCC 16 and Clang 22 are the toolchains Klip is developed on;
+- C++23 compiler — GCC 13+ or Clang 18+. GCC 16 and Clang 23 are the toolchains Klip is developed on;
   the floor is built and checked at GCC 13 and Clang 18 rather than merely declared.
 - CMake 3.28+
 - Ninja — every preset names it as the generator
