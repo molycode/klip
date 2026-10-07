@@ -49,6 +49,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_ffmpeg.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_tracy.cmake)
 
+option(KLIP_STATIC_RUNTIME "Link libstdc++ and libgcc statically, as the release package does" OFF)
+
+if(KLIP_STATIC_RUNTIME)
+	add_link_options(-static-libstdc++ -static-libgcc)
+endif()
+
 option(KLIP_BUILD_TESTS "Build Klip's test suite, from the googletest submodule" OFF)
 
 # A clone without --recurse-submodules has the mount points and nothing in them, which otherwise fails far from

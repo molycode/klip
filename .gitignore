@@ -12,6 +12,9 @@ CTestTestfile.cmake
 _deps/
 CMakeUserPresets.json
 
+# Release binaries and packages, from scripts/build_release.sh and scripts/make_package.sh
+dist/
+
 # Build output
 *.o
 *.obj
