@@ -58,11 +58,12 @@ std::filesystem::path ToFolder(std::string const& directory)
 //////////////////////////////////////////////////////////////////////////
 // Every call but the wake belongs to the thread that owns the recorder; the wake, from any thread, asks only
 // that Update be called there.
-bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Desktop::STrayIcons icons,
-                           Desktop::RequestCallback onRequest, WakeCallback wake)
+bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Encode::SCapabilities const& capabilities,
+                           Desktop::STrayIcons icons, Desktop::RequestCallback onRequest, WakeCallback wake)
 {
 	m_settings = std::move(settings);
 	m_screen = screen;
+	m_capabilities = capabilities;
 	m_wake = std::move(wake);
 
 	if (!m_audioDevices.Initialize())
@@ -80,7 +81,8 @@ bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Desktop::S
 		{
 			Encode::ECodec const codec{ static_cast<Encode::ECodec>(codecIndex) };
 
-			usable = usable || (Encode::ContainerAccepts(container, codec) && Encode::IsCodecOffered(codec));
+			usable = usable ||
+			         (Encode::ContainerAccepts(container, codec) && Encode::IsCodecOffered(m_capabilities, codec));
 		}
 
 		if (usable)
@@ -540,7 +542,7 @@ void CRecorder::RefreshCodecs()
 	{
 		Encode::ECodec const codec{ static_cast<Encode::ECodec>(index) };
 
-		if (Encode::ContainerAccepts(m_settings.container, codec) && Encode::IsCodecOffered(codec))
+		if (Encode::ContainerAccepts(m_settings.container, codec) && Encode::IsCodecOffered(m_capabilities, codec))
 		{
 			m_codecs.push_back(codec);
 		}

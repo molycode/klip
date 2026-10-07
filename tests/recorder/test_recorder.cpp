@@ -72,7 +72,9 @@ protected:
 
 	bool Initialize(Recorder::SSettings const& settings)
 	{
-		return m_recorder.Initialize(settings, Recorder::SScreen{ 2880, 1620, 60 }, Desktop::STrayIcons{}, {},
+		Encode::SCapabilities const card{ .devicePath = "/dev/dri/renderD128", .encodes = { true, true, true } };
+
+		return m_recorder.Initialize(settings, Recorder::SScreen{ 2880, 1620, 60 }, card, Desktop::STrayIcons{}, {},
 		                             [this]() { m_wakes.release(); });
 	}
 

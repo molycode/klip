@@ -5,6 +5,7 @@
 #include "capture/audio_stream.hpp"
 #include "desktop/request.hpp"
 #include "desktop/tray.hpp"
+#include "encode/capabilities.hpp"
 #include "encode/format.hpp"
 #include "encode/quality.hpp"
 #include "encode/settings.hpp"
@@ -43,8 +44,8 @@ public:
 	CRecorder() = default;
 	~CRecorder() = default;
 
-	bool Initialize(SSettings settings, SScreen const& screen, Desktop::STrayIcons icons,
-	                Desktop::RequestCallback onRequest, WakeCallback wake);
+	bool Initialize(SSettings settings, SScreen const& screen, Encode::SCapabilities const& capabilities,
+	                Desktop::STrayIcons icons, Desktop::RequestCallback onRequest, WakeCallback wake);
 	void Terminate();
 
 	void Update();
@@ -132,9 +133,10 @@ private:
 	std::vector<Encode::EContainer> m_containers;
 	std::vector<Encode::ECodec>     m_codecs;
 
-	SSettings        m_settings;
-	SSettingsChanges m_changes;
-	SScreen          m_screen;
+	SSettings             m_settings;
+	SSettingsChanges      m_changes;
+	SScreen               m_screen;
+	Encode::SCapabilities m_capabilities;
 	WakeCallback     m_wake;
 
 	std::string m_status;

@@ -5,6 +5,7 @@
 #include "config/xdg_paths.hpp"
 #include "desktop/file_manager.hpp"
 #include "desktop/tray_icons.hpp"
+#include "encode/capabilities.hpp"
 #include "folder_dialog.hpp"
 #include "fonts.hpp"
 #include "log.hpp"
@@ -288,7 +289,7 @@ bool CApplication::InitializeRecorder()
 	m_startFlow.Initialize(m_pWindow, m_recorder, [this]() { Wake(); });
 
 	return m_recorder.Initialize(
-		m_settingsStore.Load(), GetPrimaryScreen(), Desktop::DrawTrayIcons(),
+		m_settingsStore.Load(), GetPrimaryScreen(), Encode::GetCapabilities(), Desktop::DrawTrayIcons(),
 		[this](Desktop::SRequest const& request) { Request(request); }, [this]() { Wake(); });
 }
 

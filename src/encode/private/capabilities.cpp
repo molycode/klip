@@ -211,15 +211,15 @@ SCapabilities const& GetCapabilities()
 
 //////////////////////////////////////////////////////////////////////////
 // True also when the card took none of them, so the window is never left empty.
-bool IsCodecOffered(ECodec codec)
+bool IsCodecOffered(SCapabilities const& capabilities, ECodec codec)
 {
 	bool anyEncodes{ false };
 
-	for (bool const encodes : gCapabilities.encodes)
+	for (bool const encodes : capabilities.encodes)
 	{
 		anyEncodes = anyEncodes || encodes;
 	}
 
-	return !anyEncodes || gCapabilities.encodes[static_cast<size_t>(codec)];
+	return !anyEncodes || capabilities.encodes[static_cast<size_t>(codec)];
 }
 } // namespace Klip::Encode

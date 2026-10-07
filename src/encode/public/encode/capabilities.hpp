@@ -17,5 +17,5 @@ void InitializeCapabilities();
 
 SCapabilities const& GetCapabilities();
 
-bool IsCodecOffered(ECodec codec);
+bool IsCodecOffered(SCapabilities const& capabilities, ECodec codec);
 } // namespace Klip::Encode
