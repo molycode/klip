@@ -134,11 +134,13 @@ void CPortalSession::Probe(sd_bus* pBus)
 	{
 		gLog.Error("No ScreenCast portal on the session bus. Install xdg-desktop-portal and a backend for "
 		           "your desktop (xdg-desktop-portal-gnome, -kde or -wlr).");
+		m_problem = EPortalProblem::Missing;
 	}
 	else if (version < MinimumPortalVersion)
 	{
 		gLog.Error("ScreenCast portal is version {}; Klip needs {} for persist_mode.", version,
 		           MinimumPortalVersion);
+		m_problem = EPortalProblem::TooOld;
 	}
 	else
 	{
@@ -148,12 +150,14 @@ void CPortalSession::Probe(sd_bus* pBus)
 		if ((m_availableSourceTypes & SourceTypeMonitor) == 0)
 		{
 			gLog.Error("The ScreenCast portal offers no monitor source.");
+			m_problem = EPortalProblem::NoMonitor;
 		}
 		else
 		{
 			gLog.Info("ScreenCast portal v{}, sources 0x{:x}, cursor modes 0x{:x}", version,
 			          m_availableSourceTypes, m_availableCursorModes);
 
+			m_problem = EPortalProblem::None;
 			m_initialized = true;
 		}
 	}

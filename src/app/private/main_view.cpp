@@ -324,8 +324,20 @@ SViewIntents CMainView::Draw(Recorder::CRecorder& recorder, float scale, bool is
 
 	DrawAudio(recorder, scale, column);
 
+	std::string const& notice{ recorder.GetNotice() };
+
+	if (!notice.empty())
+	{
+		ImGui::Spacing();
+		ImGui::PushStyleColor(ImGuiCol_Text, recorder.CanRecord() ? GetAccentColor() : GetErrorColor());
+		ImGui::PushTextWrapPos(0.0f);
+		ImGui::TextUnformatted(notice.data(), notice.data() + notice.size());
+		ImGui::PopTextWrapPos();
+		ImGui::PopStyleColor();
+	}
+
 	ImGui::Spacing();
-	ImGui::BeginDisabled(state == Recorder::EState::Starting);
+	ImGui::BeginDisabled(state == Recorder::EState::Starting || !recorder.CanRecord());
 	intents.toggle = DrawRecordButton(state == Recorder::EState::Recording, scale);
 	ImGui::EndDisabled();
 

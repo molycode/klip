@@ -27,6 +27,12 @@ Tests::CFakePortal gFakePortal;
 
 std::atomic<uint32_t> gNumFolders{ 0 };
 
+//////////////////////////////////////////////////////////////////////////
+Encode::SCapabilities MakeWorkingCard()
+{
+	return Encode::SCapabilities{ .devicePath = "/dev/dri/renderD128", .encodes = { true, true, true } };
+}
+
 class CRecorderTest : public testing::Test
 {
 protected:
@@ -70,12 +76,10 @@ protected:
 		return settings;
 	}
 
-	bool Initialize(Recorder::SSettings const& settings)
+	void Initialize(Recorder::SSettings const& settings, Encode::SCapabilities const& card = MakeWorkingCard())
 	{
-		Encode::SCapabilities const card{ .devicePath = "/dev/dri/renderD128", .encodes = { true, true, true } };
-
-		return m_recorder.Initialize(settings, Recorder::SScreen{ 2880, 1620, 60 }, card, Desktop::STrayIcons{}, {},
-		                             [this]() { m_wakes.release(); });
+		m_recorder.Initialize(settings, Recorder::SScreen{ 2880, 1620, 60 }, card, Desktop::STrayIcons{}, {},
+		                      [this]() { m_wakes.release(); });
 	}
 
 	// Through every step the window takes, then the portal's answer.
@@ -100,7 +104,7 @@ protected:
 //////////////////////////////////////////////////////////////////////////
 TEST_F(CRecorderTest, WebMOffersOnlyAv1)
 {
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	m_recorder.SetContainer(Encode::EContainer::WebM);
 
@@ -111,7 +115,7 @@ TEST_F(CRecorderTest, WebMOffersOnlyAv1)
 //////////////////////////////////////////////////////////////////////////
 TEST_F(CRecorderTest, ChangingToWebMMovesTheCodecToAv1)
 {
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	m_recorder.SetContainer(Encode::EContainer::WebM);
 
@@ -126,7 +130,7 @@ TEST_F(CRecorderTest, LoadingNormalisesWithoutReportingAChange)
 	settings.codec = Encode::ECodec::H264;
 	settings.maxFrameRate = 45;
 
-	ASSERT_TRUE(Initialize(settings));
+	Initialize(settings);
 
 	Recorder::SSettingsChanges const changes{ m_recorder.TakeSettingsChanges() };
 
@@ -138,7 +142,7 @@ TEST_F(CRecorderTest, LoadingNormalisesWithoutReportingAChange)
 //////////////////////////////////////////////////////////////////////////
 TEST_F(CRecorderTest, ShowingTheWindowReportsNoChange)
 {
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	m_recorder.RefreshAudioDevices();
 	m_recorder.SetVisible(true);
@@ -149,7 +153,7 @@ TEST_F(CRecorderTest, ShowingTheWindowReportsNoChange)
 //////////////////////////////////////////////////////////////////////////
 TEST_F(CRecorderTest, AChoiceIsReportedOnce)
 {
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	m_recorder.SetQuality(Encode::EQuality::Best);
 
@@ -160,7 +164,7 @@ TEST_F(CRecorderTest, AChoiceIsReportedOnce)
 //////////////////////////////////////////////////////////////////////////
 TEST_F(CRecorderTest, NothingIsScheduledWhileIdle)
 {
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	m_recorder.SetVisible(true);
 
@@ -170,7 +174,7 @@ TEST_F(CRecorderTest, NothingIsScheduledWhileIdle)
 //////////////////////////////////////////////////////////////////////////
 TEST_F(CRecorderTest, BeginningWaitsForPermission)
 {
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 	ASSERT_TRUE(m_recorder.PrepareRecording());
 
 	m_recorder.BeginRecording(Encode::SRegion{});
@@ -186,7 +190,7 @@ TEST_F(CRecorderTest, DismissedPickerEndsIdle)
 	script.startResponse = 1;
 	gFakePortal.Configure(script);
 
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	StartAndAnswer();
 
@@ -201,7 +205,7 @@ TEST_F(CRecorderTest, DismissedPickerShowsTheWindowAgain)
 	script.startResponse = 1;
 	gFakePortal.Configure(script);
 
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	StartAndAnswer();
 
@@ -218,7 +222,7 @@ TEST_F(CRecorderTest, ScreenStartSendsTheKeptToken)
 	Recorder::SSettings settings{ MakeSettings() };
 	settings.screenToken = "kept";
 
-	ASSERT_TRUE(Initialize(settings));
+	Initialize(settings);
 
 	StartAndAnswer();
 
@@ -238,7 +242,7 @@ TEST_F(CRecorderTest, WindowStartWithoutRememberDropsTheWindowToken)
 	settings.source = Recorder::ESource::Window;
 	settings.windowToken = "old";
 
-	ASSERT_TRUE(Initialize(settings));
+	Initialize(settings);
 
 	StartAndAnswer();
 
@@ -254,7 +258,7 @@ TEST_F(CRecorderTest, StartThatFailsAfterTheGrantStillKeepsTheNewToken)
 	script.streams = { { .nodeId = 42, .width = 0, .height = 0, .hasSize = false } };
 	gFakePortal.Configure(script);
 
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 
 	StartAndAnswer();
 
@@ -272,7 +276,7 @@ TEST_F(CRecorderTest, FolderUnderAFileCannotBePrepared)
 	Recorder::SSettings settings{ MakeSettings() };
 	settings.directory = (m_folder / "file" / "recordings").string();
 
-	ASSERT_TRUE(Initialize(settings));
+	Initialize(settings);
 
 	Tge::Testing::CExpectedLog const expected{ "Recorder", 0, 1 };
 
@@ -287,7 +291,7 @@ TEST_F(CRecorderTest, SecondStartWhileTheFirstAwaitsThePortalIsRefused)
 	script.holdStart = true;
 	gFakePortal.Configure(script);
 
-	ASSERT_TRUE(Initialize(MakeSettings()));
+	Initialize(MakeSettings());
 	ASSERT_TRUE(m_recorder.PrepareRecording());
 
 	m_recorder.BeginRecording(Encode::SRegion{});
@@ -297,4 +301,53 @@ TEST_F(CRecorderTest, SecondStartWhileTheFirstAwaitsThePortalIsRefused)
 	EXPECT_EQ(m_recorder.GetState(), Recorder::EState::Starting);
 	EXPECT_EQ(m_recorder.GetStatus(), "Waiting for permission…");
 	EXPECT_EQ(m_recorder.TakeReveal(), Recorder::EReveal::None);
+}
+
+//////////////////////////////////////////////////////////////////////////
+TEST_F(CRecorderTest, MissingPortalBlocksRecording)
+{
+	gFakePortal.Withdraw();
+	Initialize(MakeSettings());
+	ASSERT_TRUE(gFakePortal.Restore());
+
+	EXPECT_FALSE(m_recorder.CanRecord());
+	EXPECT_FALSE(m_recorder.PrepareRecording());
+}
+
+//////////////////////////////////////////////////////////////////////////
+TEST_F(CRecorderTest, PortalTooOldBlocksRecording)
+{
+	Tests::SFakeScript script;
+	script.version = 3;
+	gFakePortal.Configure(script);
+	Initialize(MakeSettings());
+
+	EXPECT_FALSE(m_recorder.CanRecord());
+}
+
+//////////////////////////////////////////////////////////////////////////
+TEST_F(CRecorderTest, MissingGraphicsCardBlocksRecording)
+{
+	Initialize(MakeSettings(), Encode::SCapabilities{});
+
+	EXPECT_FALSE(m_recorder.CanRecord());
+	EXPECT_EQ(m_recorder.GetStatus(), "Cannot record");
+}
+
+//////////////////////////////////////////////////////////////////////////
+TEST_F(CRecorderTest, BlockedStartRaisesTheWindow)
+{
+	Initialize(MakeSettings(), Encode::SCapabilities{});
+
+	EXPECT_FALSE(m_recorder.PrepareRecording());
+	EXPECT_EQ(m_recorder.TakeReveal(), Recorder::EReveal::Raise);
+}
+
+//////////////////////////////////////////////////////////////////////////
+TEST_F(CRecorderTest, CardThatEncodesNothingWarnsButStillRecords)
+{
+	Initialize(MakeSettings(), Encode::SCapabilities{ .devicePath = "/dev/dri/renderD128" });
+
+	EXPECT_FALSE(m_recorder.GetNotice().empty());
+	EXPECT_TRUE(m_recorder.PrepareRecording());
 }

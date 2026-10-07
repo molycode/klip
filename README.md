@@ -97,7 +97,8 @@ of a quiet desktop can come in at half that or less.
 - Ninja — every preset names it as the generator
 - A desktop running `xdg-desktop-portal` with a ScreenCast backend, and PipeWire 1.0+
 - A VAAPI driver that can encode, such as `mesa-va-drivers`. Klip opens each encoder once at startup
-  and offers only what the card accepts, so a machine without a working driver offers nothing at all.
+  and offers only what the card accepts. Without a working driver, or without a ScreenCast portal, its
+  window says what is missing and what to install, and Record stays off.
 
 On Wayland every capture goes through the desktop portal, so Klip asks the compositor for a stream and the
 compositor shows you its own picker the first time. That also applies to X11 sessions — there is no separate

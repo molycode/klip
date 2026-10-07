@@ -13,6 +13,8 @@
 #include <ctime>
 #include <filesystem>
 #include <format>
+#include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
@@ -27,12 +29,44 @@ constexpr uint32_t FallbackFrameRate{ 60 };
 
 constexpr double BytesPerMebibyte{ 1024.0 * 1024.0 };
 
+constexpr std::string_view NoPortalNotice{
+	"Klip cannot record here: no screen-sharing portal is running. Install xdg-desktop-portal and the backend for "
+	"your desktop, such as xdg-desktop-portal-gnome, -kde or -wlr, then start Klip again." };
+constexpr std::string_view OldPortalNotice{
+	"Klip cannot record here: the desktop's screen-sharing portal is too old to keep a permission between "
+	"recordings. Update xdg-desktop-portal and its backend, then start Klip again." };
+constexpr std::string_view NoScreenNotice{
+	"Klip cannot record here: the desktop's screen-sharing portal offers no screen to record." };
+constexpr std::string_view NoDeviceNotice{
+	"Klip cannot record here: it encodes on the graphics card through VAAPI and found no card to use. Install your "
+	"card's VAAPI driver, such as mesa-va-drivers for AMD or intel-media-driver for Intel, then start Klip again." };
+constexpr std::string_view RefusedCodecsNotice{
+	"The graphics card turned down H.264, HEVC and AV1 when Klip tried them at startup, so recording will probably "
+	"fail. Its VAAPI driver may not encode: try mesa-va-drivers for AMD or intel-media-driver for Intel." };
+
 //////////////////////////////////////////////////////////////////////////
 // Klip's own trim per source. The system's volumes are left alone: a sink's does not reach its monitor at all,
 // and a source's belongs to every other application too.
 float ToGain(int decibels)
 {
 	return FromDecibels(static_cast<float>(decibels));
+}
+
+//////////////////////////////////////////////////////////////////////////
+std::string_view GetPortalNotice(Capture::EPortalProblem problem)
+{
+	std::string_view notice{ NoPortalNotice };
+
+	if (problem == Capture::EPortalProblem::TooOld)
+	{
+		notice = OldPortalNotice;
+	}
+	else if (problem == Capture::EPortalProblem::NoMonitor)
+	{
+		notice = NoScreenNotice;
+	}
+
+	return notice;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -58,7 +92,7 @@ std::filesystem::path ToFolder(std::string const& directory)
 //////////////////////////////////////////////////////////////////////////
 // Every call but the wake belongs to the thread that owns the recorder; the wake, from any thread, asks only
 // that Update be called there.
-bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Encode::SCapabilities const& capabilities,
+void CRecorder::Initialize(SSettings settings, SScreen const& screen, Encode::SCapabilities const& capabilities,
                            Desktop::STrayIcons icons, Desktop::RequestCallback onRequest, WakeCallback wake)
 {
 	m_settings = std::move(settings);
@@ -129,7 +163,35 @@ bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Encode::SC
 		m_wake();
 	});
 
-	return m_session.Initialize(m_wake);
+	bool const hasPortal{ m_session.Initialize(m_wake) };
+	bool const hasDevice{ !m_capabilities.devicePath.empty() };
+
+	// The window opens either way, to say what is missing instead of vanishing or failing at the first recording.
+	m_canRecord = hasPortal && hasDevice;
+
+	auto const addNotice = [this](std::string_view notice) {
+		m_notice += m_notice.empty() ? "" : "\n\n";
+		m_notice += notice;
+	};
+
+	if (!hasPortal)
+	{
+		addNotice(GetPortalNotice(m_session.GetPortalProblem()));
+	}
+
+	if (!hasDevice)
+	{
+		addNotice(NoDeviceNotice);
+	}
+	else if (!std::ranges::contains(m_capabilities.encodes, true))
+	{
+		addNotice(RefusedCodecsNotice);
+	}
+
+	if (!m_canRecord)
+	{
+		m_status = "Cannot record";
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -342,7 +404,12 @@ bool CRecorder::PrepareRecording()
 {
 	bool prepared{ false };
 
-	if (m_state == EState::Idle)
+	// A tray Start would otherwise do nothing anyone sees; the window says why.
+	if (m_state == EState::Idle && !m_canRecord)
+	{
+		m_reveal = EReveal::Raise;
+	}
+	else if (m_state == EState::Idle)
 	{
 		std::filesystem::path const folder{ ToFolder(m_settings.directory) };
 		std::error_code             error;

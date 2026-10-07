@@ -44,7 +44,7 @@ public:
 	CRecorder() = default;
 	~CRecorder() = default;
 
-	bool Initialize(SSettings settings, SScreen const& screen, Encode::SCapabilities const& capabilities,
+	void Initialize(SSettings settings, SScreen const& screen, Encode::SCapabilities const& capabilities,
 	                Desktop::STrayIcons icons, Desktop::RequestCallback onRequest, WakeCallback wake);
 	void Terminate();
 
@@ -90,6 +90,9 @@ public:
 	CLevelBallistics const& GetMeter(EAudioSource source) const { return m_meters[Index(source)]; }
 
 	bool IsTrayAvailable() const { return m_tray.IsAvailable(); }
+	bool CanRecord() const { return m_canRecord; }
+
+	std::string const& GetNotice() const { return m_notice; }
 
 	std::string const& GetStatus() const { return m_status; }
 	std::string const& GetElapsed() const { return m_elapsed; }
@@ -144,6 +147,7 @@ private:
 	std::string m_qualityHint;
 	std::string m_audioQualityHint;
 	std::string m_currentPath;
+	std::string m_notice;
 
 	Encode::SRegion m_region;
 
@@ -156,6 +160,7 @@ private:
 	EState  m_state{ EState::Idle };
 	EReveal m_reveal{ EReveal::None };
 	bool    m_visible{ false };
+	bool    m_canRecord{ true };
 
 	std::atomic<bool> m_withdrawn{ false };
 };

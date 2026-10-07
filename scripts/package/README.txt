@@ -11,8 +11,8 @@ x86-64 (64-bit PC) Linux with glibc 2.35, PipeWire 1.0 and libva 2.20 or newer, 
 Ubuntu 24.04, Debian 13, Fedora 40, Arch Linux, AlmaLinux and RHEL 9, and later releases.
 The desktop must run xdg-desktop-portal with a ScreenCast backend, and the graphics card
 needs a VAAPI driver that can encode, such as mesa-va-drivers for AMD or intel-media-driver
-for Intel. Klip offers only the formats the card accepts, so without such a driver it
-offers none.
+for Intel. Klip offers only the formats the card accepts; without such a driver or a
+screen-sharing portal, its window says what is missing and Record stays off.
 
 Install
 -------

@@ -76,6 +76,8 @@ public:
 
 	bool IsRecording() const { return m_encoding.load(std::memory_order_acquire); }
 
+	Capture::EPortalProblem GetPortalProblem() const { return m_portal.GetProblem(); }
+
 	SSessionStats GetStats() const;
 
 	std::string const& GetStartFailure() const { return m_startFailure; }

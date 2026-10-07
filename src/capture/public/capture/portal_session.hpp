@@ -33,6 +33,14 @@ enum class EPortalResult : uint8_t
 	Failed
 };
 
+enum class EPortalProblem : uint8_t
+{
+	None,
+	Missing,
+	TooOld,
+	NoMonitor
+};
+
 struct SPortalGrant final
 {
 	EPortalResult result{ EPortalResult::Failed };
@@ -63,6 +71,8 @@ public:
 	void Close();
 
 	void Start(ESourceType source, bool rememberWindow, std::string restoreToken, ResultCallback callback);
+
+	EPortalProblem GetProblem() const { return m_problem; }
 
 private:
 
@@ -98,6 +108,7 @@ private:
 	sd_bus_slot*   m_pClosedSlot{ nullptr };
 	EStep          m_step{ EStep::None };
 	ESourceType    m_source{ ESourceType::Screen };
+	EPortalProblem m_problem{ EPortalProblem::None };
 	uint32_t       m_availableSourceTypes{ 0 };
 	uint32_t       m_availableCursorModes{ 0 };
 	bool           m_rememberWindow{ false };

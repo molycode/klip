@@ -113,10 +113,11 @@ bool CApplication::Initialize(std::filesystem::path const& logsDir)
 			gLog.Error("Cannot register the event that wakes the window: {}", SDL_GetError());
 		}
 
-		initialized = m_wakeEventType != 0 && CreateWindowAndRenderer() && InitializeImGui() && InitializeRecorder();
+		initialized = m_wakeEventType != 0 && CreateWindowAndRenderer() && InitializeImGui();
 
 		if (initialized)
 		{
+			InitializeRecorder();
 			m_aboutDialog.Initialize(m_pWindow, m_settingsStore.GetDirectory().string(), logsDir.string());
 			initialized = ShowMainWindow();
 		}
@@ -283,12 +284,12 @@ bool CApplication::InitializeImGui()
 
 //////////////////////////////////////////////////////////////////////////
 // After SDL, whose display the size hint reads, and before the window shows, whose first frame draws the recorder.
-bool CApplication::InitializeRecorder()
+void CApplication::InitializeRecorder()
 {
 	m_settingsStore.Initialize(Config::GetConfigHome(), Config::GetHome());
 	m_startFlow.Initialize(m_pWindow, m_recorder, [this]() { Wake(); });
 
-	return m_recorder.Initialize(
+	m_recorder.Initialize(
 		m_settingsStore.Load(), GetPrimaryScreen(), Encode::GetCapabilities(), Desktop::DrawTrayIcons(),
 		[this](Desktop::SRequest const& request) { Request(request); }, [this]() { Wake(); });
 }

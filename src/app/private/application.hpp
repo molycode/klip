@@ -44,7 +44,7 @@ private:
 
 	bool CreateWindowAndRenderer();
 	bool InitializeImGui();
-	bool InitializeRecorder();
+	void InitializeRecorder();
 	bool ShowMainWindow();
 
 	void Wake() const;
