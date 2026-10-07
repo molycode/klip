@@ -12,6 +12,7 @@ namespace
 {
 constexpr char const* ScreenCastInterface{ "org.freedesktop.portal.ScreenCast" };
 constexpr char const* SessionInterface{ "org.freedesktop.portal.Session" };
+constexpr char const* ScreenshotInterface{ "org.freedesktop.portal.Screenshot" };
 constexpr char const* SessionPrefix{ "/org/freedesktop/portal/desktop/session" };
 
 // Both the real portal's capability masks: monitor, window and virtual sources; hidden, embedded and metadata
@@ -65,6 +66,11 @@ int Close(sd_bus_message* pMessage, void* pUserdata, sd_bus_error*)
 	return Fake(pUserdata)->OnClose(pMessage);
 }
 
+int Screenshot(sd_bus_message* pMessage, void* pUserdata, sd_bus_error*)
+{
+	return Fake(pUserdata)->OnScreenshot(pMessage);
+}
+
 sd_bus_vtable const ScreenCastVtable[]{
 	SD_BUS_VTABLE_START(0),
 	SD_BUS_PROPERTY("version", "u", GetVersion, 0, 0),
@@ -74,6 +80,12 @@ sd_bus_vtable const ScreenCastVtable[]{
 	SD_BUS_METHOD("SelectSources", "oa{sv}", "o", SelectSources, 0),
 	SD_BUS_METHOD("Start", "osa{sv}", "o", Start, 0),
 	SD_BUS_METHOD("OpenPipeWireRemote", "oa{sv}", "h", OpenPipeWireRemote, 0),
+	SD_BUS_VTABLE_END
+};
+
+sd_bus_vtable const ScreenshotVtable[]{
+	SD_BUS_VTABLE_START(0),
+	SD_BUS_METHOD("Screenshot", "sa{sv}", "o", Screenshot, 0),
 	SD_BUS_VTABLE_END
 };
 
@@ -116,6 +128,8 @@ bool CFakePortal::Initialize()
 		m_connection.Run([this, &initialized](sd_bus* pBus) {
 			initialized = sd_bus_add_object_vtable(pBus, &m_pScreenCastSlot, Bus::PortalPath, ScreenCastInterface,
 			                                       ScreenCastVtable, this) >= 0
+			              && sd_bus_add_object_vtable(pBus, &m_pScreenshotSlot, Bus::PortalPath, ScreenshotInterface,
+			                                          ScreenshotVtable, this) >= 0
 			              && sd_bus_add_fallback_vtable(pBus, &m_pSessionSlot, SessionPrefix, SessionInterface,
 			                                            SessionVtable, nullptr, this) >= 0
 			              && sd_bus_request_name(pBus, Bus::PortalService, 0) >= 0;
@@ -133,6 +147,7 @@ void CFakePortal::Terminate()
 
 		m_pScreenCastSlot = sd_bus_slot_unref(m_pScreenCastSlot);
 		m_pSessionSlot = sd_bus_slot_unref(m_pSessionSlot);
+		m_pScreenshotSlot = sd_bus_slot_unref(m_pScreenshotSlot);
 
 		if (m_record.remotePeer >= 0)
 		{
@@ -395,6 +410,34 @@ int CFakePortal::OnClose(sd_bus_message* pMessage)
 	}
 
 	return result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+int CFakePortal::OnScreenshot(sd_bus_message* pMessage)
+{
+	char const* pParent{ nullptr };
+	std::string requestToken;
+	int         interactive{ 1 };
+	int         result{ sd_bus_message_read(pMessage, "s", &pParent) };
+
+	if (result >= 0)
+	{
+		result = Bus::ReadDict(pMessage, [&requestToken, &interactive](std::string_view key, sd_bus_message* pEntry) {
+			return (key == "handle_token" && Bus::ReadString(pEntry, requestToken))
+			       || (key == "interactive" && sd_bus_message_read(pEntry, "v", "b", &interactive) >= 0);
+		});
+	}
+
+	m_record.screenshotInteractive = interactive != 0;
+
+	std::vector<Bus::SOption> results;
+
+	if (m_script.screenshotResponse == Bus::ResponseSuccess)
+	{
+		results.push_back({ "uri", m_script.screenshotUri });
+	}
+
+	return result < 0 ? result : Answer(pMessage, requestToken, m_script.screenshotResponse, results);
 }
 
 //////////////////////////////////////////////////////////////////////////

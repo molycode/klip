@@ -1,18 +1,39 @@
 add_executable(Klip
+	private/activation.hpp
+	private/activation.cpp
+	private/application.hpp
+	private/application.cpp
+	private/embedded_fonts.hpp
+	private/folder_dialog.hpp
+	private/folder_dialog.cpp
+	private/folder_dialog_mailbox.hpp
+	private/folder_dialog_result.hpp
+	private/folder_dialog_state.hpp
+	private/fonts.hpp
+	private/fonts.cpp
+	private/format_to.hpp
+	private/icons.hpp
 	private/level_meter.hpp
 	private/level_meter.cpp
 	private/log.hpp
 	private/log.cpp
 	private/main.cpp
-	private/main_window.hpp
-	private/main_window.cpp
+	private/main_view.hpp
+	private/main_view.cpp
+	private/primary_display.hpp
+	private/primary_display.cpp
 	private/region_selector.hpp
 	private/region_selector.cpp
-	private/screenshot.hpp
-	private/screenshot.cpp
+	private/selector_answer.hpp
+	private/start_flow.hpp
+	private/start_flow.cpp
+	private/start_step.hpp
+	private/theme.hpp
+	private/theme.cpp
+	private/ui_scale.hpp
+	private/ui_scale.cpp
+	private/view_intents.hpp
 )
-
-set_target_properties(Klip PROPERTIES AUTOMOC ON)
 
 set_target_properties(Klip PROPERTIES OUTPUT_NAME "klip")
 
@@ -31,13 +52,14 @@ target_link_libraries(Klip PRIVATE
 	Tge::Profiling
 	TgeLogging
 	TgeThreading
-	Qt6::Widgets
+	imgui
+	SDL3::SDL3-static
 )
 
 KlipApplyCompileFlags(Klip)
 
-# Qt's headers contain try/catch. Applied after the project flags so it lands last and wins.
-target_compile_options(Klip PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fexceptions>)
+KlipEmbedFile(Klip RobotoMedium ${PROJECT_SOURCE_DIR}/external/imgui/misc/fonts/Roboto-Medium.ttf)
+KlipEmbedFile(Klip FontAwesomeSolid ${PROJECT_SOURCE_DIR}/assets/fonts/fa-solid-900.ttf)
 
 # Guarded: a parent vendoring Klip is installing its own application, not this one.
 if(PROJECT_IS_TOP_LEVEL)
@@ -45,8 +67,8 @@ if(PROJECT_IS_TOP_LEVEL)
 
 	install(TARGETS Klip RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-	# Named klip.desktop because main.cpp calls setDesktopFileName("klip"); a Wayland compositor matches
-	# the window to its launcher by that name, and an entry filed under any other loses the icon.
+	# Named klip.desktop because the window's app_id is "klip"; a Wayland compositor matches the window to its
+	# launcher by that name, and an entry filed under any other loses the icon.
 	install(FILES ${PROJECT_SOURCE_DIR}/data/klip.desktop
 	        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
 

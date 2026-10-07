@@ -32,6 +32,9 @@ struct SFakeScript final
 
 	// Keeps Start's Response back until ReleaseStart.
 	bool holdStart{ false };
+
+	uint32_t    screenshotResponse{ 0 };
+	std::string screenshotUri{ "file:///tmp/klip-test-shot.png" };
 };
 
 // What Klip asked of it.
@@ -42,10 +45,11 @@ struct SFakeRecord final
 	std::string restoreToken;
 	uint32_t    numCloses{ 0 };
 	int         remotePeer{ -1 };
+	bool        screenshotInteractive{ true };
 };
 
-// org.freedesktop.portal.Desktop's ScreenCast, on a connection and a thread of its own. Everything it holds is
-// touched only on that thread, so every accessor goes through Run.
+// org.freedesktop.portal.Desktop's ScreenCast and Screenshot, on a connection and a thread of its own.
+// Everything it holds is touched only on that thread, so every accessor goes through Run.
 class CFakePortal final : private Tge::SNoCopyNoMove
 {
 public:
@@ -73,6 +77,7 @@ public:
 	int OnStart(sd_bus_message* pMessage);
 	int OnOpenPipeWireRemote(sd_bus_message* pMessage);
 	int OnClose(sd_bus_message* pMessage);
+	int OnScreenshot(sd_bus_message* pMessage);
 
 private:
 
@@ -87,6 +92,7 @@ private:
 	std::string      m_heldRequestPath;
 	sd_bus_slot*     m_pScreenCastSlot{ nullptr };
 	sd_bus_slot*     m_pSessionSlot{ nullptr };
+	sd_bus_slot*     m_pScreenshotSlot{ nullptr };
 	bool             m_releaseOnArrival{ false };
 };
 } // namespace Klip::Tests

@@ -25,6 +25,7 @@ add_library(KlipCapture STATIC
 	public/capture/pipewire.hpp
 	public/capture/pipewire_stream.hpp
 	public/capture/portal_session.hpp
+	public/capture/screenshot.hpp
 	private/audio_devices.cpp
 	private/audio_loop.hpp
 	private/audio_loop.cpp
@@ -34,6 +35,7 @@ add_library(KlipCapture STATIC
 	private/pipewire.cpp
 	private/pipewire_stream.cpp
 	private/portal_session.cpp
+	private/screenshot.cpp
 )
 
 target_include_directories(KlipCapture PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/private)

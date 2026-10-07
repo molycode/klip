@@ -2,10 +2,10 @@
 #error "No KLIP_PLATFORM_* define. cmake/platform.cmake did not run."
 #endif // platform define present
 
+#include "application.hpp"
 #include "bus/connection.hpp"
 #include "desktop/single_instance.hpp"
 #include "log.hpp"
-#include "main_window.hpp"
 
 #include <capture/pipewire.hpp>
 #include <encode/capabilities.hpp>
@@ -13,8 +13,6 @@
 #include <tge/init/init.hpp>
 #include <tge/logging/log_system.hpp>
 #include <tge/profiling/profiler_hooks.hpp>
-
-#include <QtWidgets/QApplication>
 
 #include <cstdio>
 #include <cstdlib>
@@ -54,28 +52,28 @@ int RunKlip()
 		Klip::Encode::InitializeCapabilities();
 	}
 
-	Klip::CMainWindow window;
+	Klip::CApplication application;
 
 	bool opened{ false };
 
 	{
 		TGE_PROFILE_SCOPE_N("Startup: window");
-		opened = window.Initialize();
+		opened = application.Initialize();
 	}
 
 	if (opened)
 	{
 		Klip::Desktop::gSingleInstance.Serve(
-			[&window](Klip::Desktop::SRequest const& request) { window.Request(request); });
+			[&application](Klip::Desktop::SRequest const& request) { application.Request(request); });
 
-		window.show();
-		exitCode = QApplication::exec();
+		application.Run();
+		exitCode = 0;
 	}
 
-	// First: its callback points at the window.
+	// First: its callback points at the application.
 	Klip::Desktop::gSingleInstance.Terminate();
 
-	window.Terminate();
+	application.Terminate();
 	Klip::Capture::TerminatePipeWire();
 
 	return exitCode;
@@ -85,7 +83,7 @@ int RunKlip()
 //////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-	// Answered before the log system and Qt, so it works over ssh and on a machine with no display.
+	// Answered before the log system and SDL, so it works over ssh and on a machine with no display.
 	if (WantsVersion(argc, argv))
 	{
 		std::puts("Klip " KLIP_VERSION);
@@ -98,14 +96,6 @@ int main(int argc, char** argv)
 	// Before Tge::Initialize, where the job pool spawns: a thread started after the hooks are in place
 	// is a thread the profiler can name.
 	Tge::Profiling::RegisterHooks();
-
-	QApplication app(argc, argv);
-	QApplication::setStyle(QStringLiteral("Fusion"));
-	QApplication::setApplicationName(QStringLiteral("Klip"));
-	QApplication::setDesktopFileName(QStringLiteral("klip"));
-
-	// Hiding to the tray while recording must not be read as the last window closing.
-	QApplication::setQuitOnLastWindowClosed(false);
 
 	int exitCode{ 1 };
 

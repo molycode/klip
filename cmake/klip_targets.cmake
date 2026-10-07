@@ -17,3 +17,22 @@ function(KlipSuppressExternalWarnings target_name)
 		target_compile_options(${target_name} PRIVATE -w)
 	endif()
 endfunction()
+
+# KlipSuppressExternalWarnings for every target that compiles anything in a directory and the ones below it.
+function(KlipSuppressExternalWarningsInDirectory dir)
+	get_property(KlipTargets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
+
+	foreach(KlipTarget IN LISTS KlipTargets)
+		get_target_property(KlipTargetType ${KlipTarget} TYPE)
+
+		if(KlipTargetType MATCHES "^(STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY|EXECUTABLE)$")
+			KlipSuppressExternalWarnings(${KlipTarget})
+		endif()
+	endforeach()
+
+	get_property(KlipSubdirectories DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
+
+	foreach(KlipSubdirectory IN LISTS KlipSubdirectories)
+		KlipSuppressExternalWarningsInDirectory(${KlipSubdirectory})
+	endforeach()
+endfunction()

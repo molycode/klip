@@ -17,6 +17,7 @@ add_executable(KlipTests
 	capture/fake_portal.hpp
 	capture/fake_portal.cpp
 	capture/test_portal_session.cpp
+	capture/test_screenshot.cpp
 	config/config_test.hpp
 	config/config_test.cpp
 	config/test_klip_conf_import.cpp

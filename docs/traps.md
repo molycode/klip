@@ -86,17 +86,23 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
 ## The region selector
 
 - **Nothing composites behind a fullscreen window.** Measured on Mutter: where the region selector painted
-  nothing at all, a capture read pure black, not the desktop. Qt was never at fault -- the surface really
-  is ARGB. So the selector paints an `org.freedesktop.portal.Screenshot` image as its backdrop instead of
+  nothing at all, a capture read pure black, not the desktop. The toolkit was never at fault -- the surface
+  really is ARGB. So the selector paints an `org.freedesktop.portal.Screenshot` image as its backdrop instead of
   showing through, and that is a second portal permission on top of the ScreenCast one.
 - **A plain window cannot stand in for a fullscreen one.** Wayland gives a client no say in its position:
   a window sized to the screen was placed at the work area origin -- 68,32 on a desktop with a dock and a
   top bar -- so it neither covers the output nor maps 1:1 to stream pixels.
 - **A window hidden a moment ago is still on screen.** GNOME animates it away over about 150 ms, so a
-  screenshot taken straight after `hide()` still holds it: the whole window, all 630k pixels of it. It
+  screenshot taken straight after the hide still holds it: the whole window, all 630k pixels of it. It
   cuts both ways -- a capture that opens the moment the selector closes records the selector fading out,
   ghost backdrop and rectangle and all, for its first seven frames. Hide before the stream opens rather
   than once it is running, and settle after every hide that a capture or a screenshot follows.
+- **An unfocused fullscreen window opens under the others.** Mutter lifts a fullscreen window above the
+  rest only while it has focus, and Wayland gives SDL no always-on-top. Shown with neither an activation
+  token nor a recent click behind it, the selector covered the top bar and the dock -- dimmed by exactly
+  its shade, 0.571 -- while a terminal and Files stayed above it untouched. A toggle from Klip's own button
+  carries the click and a tray click can carry a token; a toggle sent over D-Bus by a script carries
+  neither, so an unattended run cannot show the selector in front.
 - **A window resized mid-recording is recorded at one to one, on purpose.** The valid area is read from
   `SPA_META_VideoCrop` on the first frame and fixed there, so a window that grows is clipped and one that
   shrinks carries the compositor's black padding -- measured against a window cycling 700x600, 1000x800
@@ -106,6 +112,24 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
   resize; only the crop changes, and its origin is always +0,0 because a window renders at the buffer's
   corner. Centred bars would need `pad_vaapi`, which on Mesa's radeonsi fills green whatever colour is
   asked for.
+
+## The window
+
+- **SDL 3.4 prefers XWayland on a compositor without `fifo-v1`**, GNOME 46 among them, so Klip asks for
+  `wayland,x11` in that order. The log's `Display:` line names the driver that won.
+- **SDL keeps the screen awake by default** -- `SDL_HINT_VIDEO_ALLOW_SCREENSAVER` starts off -- so without
+  the hint a Klip sitting in the tray would keep the screen from locking.
+- **An activation token is spent only by a show, and only from SDL's own copy of the environment.** SDL
+  copies the environment at startup and reads `XDG_ACTIVATION_TOKEN` from that copy, so it is set with
+  `SDL_SetEnvironmentVariable(SDL_GetEnvironment(), …)`, not `setenv`. Raising a window that is already
+  mapped asks the compositor for a fresh token from the focused surface, which GNOME refuses while Klip has
+  no focus -- so a shown window is hidden and shown again to spend one. And `SDL_OpenURL` hands any token
+  still set to the program it starts, so none is ever left set.
+- **Hiding a Wayland window destroys its toplevel**, and the next show makes a new one, which is why the
+  hide and show above activates it.
+- **A resize is asynchronous on Wayland.** `SDL_SetWindowSize` sends a request the compositor answers later,
+  so the size read straight after it is still the old one; the window asks only when the height it needs
+  changes, never once per frame.
 
 ## The tray
 
@@ -129,12 +153,15 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
 
 ## Building
 
-- **A C++ standard CMake does not know sinks `find_package(Qt6)`, not the compile.** `CMAKE_CXX_STANDARD`
-  propagates into Qt's own `try_compile` probes, so declaring 26 made `Qt6Core` report itself NOT_FOUND
-  under every CMake below 4.x -- the visible error naming `Qt6/FindWrapAtomic.cmake` and reading as a Qt
-  problem. It is not one: `Target "cmTC_…" requires the language dialect "CXX26"` is the line underneath.
-  Raising the standard therefore raises the CMake floor with it, which is why Klip asks for 23 and not for
-  whatever is newest.
+- **Ubuntu 24.04's default Clang cannot use its `std::expected`.** libstdc++ 13 declares it only when
+  `__cpp_concepts` is at least 202002L, and Clang 18 reports 201907L, so the floor's Clang build stops at
+  "no template named 'expected'" while GCC 13 is fine. The same archive ships `clang-19`, which is the
+  floor, and configure refuses 18 by name.
+
+- **SDL leaves out a backend whose development files are missing, without a word.** The build succeeds and
+  the window then has no title bar on GNOME (no libdecor), runs under XWayland (no Wayland) or never shows
+  a folder dialog (no D-Bus). `cmake/klip_sdl.cmake` reads SDL's own `HAVE_*` results back from its
+  directory and stops with the package names instead.
 
 - **`sd_bus_error` cannot be forward-declared before libsystemd 259.** Until then sd-bus declares it as a
   typedef of an anonymous struct, so `struct sd_bus_error;` is a redefinition with a different type -- on

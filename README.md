@@ -88,7 +88,8 @@ X11 path and none is needed.
 
 - **tge-core** — logging, memory, threading, IO. A git submodule; nothing to install.
 - **nlohmann/json** — the settings file. A git submodule, header only; nothing to install.
-- **Qt 6.4+** — Widgets, for the window. Used under LGPLv3 and linked dynamically.
+- **SDL 3** and **Dear ImGui** — the window. Git submodules, compiled into Klip; SDL needs the Wayland, X11
+  and D-Bus development packages below, and loads those libraries itself when Klip starts.
 - **FFmpeg 6.1+** (avcodec, avfilter, avformat, avutil, swscale) and **libva** — encoding
 - **PipeWire 1.0+** and **libdrm** — the capture stream
 - **libsystemd 246+** — its sd-bus is how Klip talks to the desktop portal, so a distribution without
@@ -97,9 +98,11 @@ X11 path and none is needed.
 Ubuntu 24.04 and newer carry all of them:
 
 ```bash
-sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev \
+sudo apt install build-essential cmake ninja-build pkg-config \
     libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev libswscale-dev \
-    libva-dev libdrm-dev libpipewire-0.3-dev libsystemd-dev
+    libva-dev libdrm-dev libpipewire-0.3-dev libsystemd-dev \
+    libwayland-dev libxkbcommon-dev libegl-dev libgl-dev libdecor-0-dev libdbus-1-dev \
+    libx11-dev libxext-dev libxcursor-dev libxi-dev libxfixes-dev libxrandr-dev
 ```
 
 On other distributions, configure and read the error: each dependency that is missing names its own
@@ -179,7 +182,10 @@ tests/              the test suite (KLIP_BUILD_TESTS), each run on a private ses
 cmake/              toolchains, per-compiler flags, sanitizers, platform defines
 external/tge-core   the foundation library (submodule)
 external/json       nlohmann/json (submodule)
+external/sdl        SDL 3, the window and its events (submodule, compiled in statically)
+external/imgui      Dear ImGui, what the window draws (submodule)
 external/googletest the test framework (submodule, only built with the tests)
+assets/             the icon font, and the licences of both fonts and of what SDL bundles
 scripts/            the FFmpeg build helper, the floor build, the smoke test, the sanitizer triage tools
 docs/               the screenshot, what measurement taught, and how the checks are run
 ```

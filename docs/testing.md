@@ -47,16 +47,16 @@ a DMA-BUF imported with the wrong modifier -- tiles read as linear -- scores -0.
 other gate including the decode. It compares luma only, so a red and blue swap still passes, and it is
 skipped for a window source and for a screenshot spanning more than one monitor.
 
-`--quit` ends through the tray menu rather than `SIGTERM`. Without it no exit path runs at all, every
-`Terminate` is skipped and a leak checker reports nothing, so pass it whenever the run is being watched by
-a tool. It also gates the exit status: a crash, a non-zero exit, or a Quit still running 30 seconds later
-fails the run. Klip's console output lands in `console.log` beside the recording, kept with it whenever a
+`--quit` ends through the tray menu, the way a user quits, and gates the exit status: a crash, a non-zero
+exit, or a Quit still running 30 seconds later fails the run, so pass it whenever the run is being watched
+by a tool. Without it the run ends with `SIGTERM`, which SDL turns into a quit event and Klip shuts down
+from just as cleanly -- but nothing checks how it went. Klip's console output lands in `console.log` beside the recording, kept with it whenever a
 gate fails. A sanitizer's own exit code would fail that gate on third-party leaks alone, so run them with
 `exitcode=0` and let the triage scripts decide.
 
 Two sources cannot be driven unattended. A **window** needs the grant kept -- tick *Remember the window*,
 pick once by hand, and later runs restore it. A **region** needs a drag, and AT-SPI injects through XTEST,
-which cannot reach a native Wayland surface. Running Klip under XWayland (`QT_QPA_PLATFORM=xcb`) and
+which cannot reach a native Wayland surface. Running Klip under XWayland (`SDL_VIDEO_DRIVER=x11`) and
 dragging with `xdotool` does not get round it on GNOME: its Xwayland runs with `-enable-ei-portal`, so
 XTEST input is forwarded through the RemoteDesktop portal and is dropped without that portal's consent,
 while X's own idea of the pointer moves as if it had worked.
@@ -75,8 +75,8 @@ python3 scripts/smoke_test.py --klip build/gcc-asan/src/app/klip --quit
 ```
 
 `address`, `undefined`, `address,undefined` and `thread` each have a preset for both compilers. The option instruments
-everything compiled from source -- Klip and tge-core alike, as TSan needs both sides of a handover to see
-it -- and for ASan and TSan forces `TGE_ENABLE_GLOBAL_ALLOCATOR` off, since rpmalloc hides allocations and
+everything compiled from source -- Klip, tge-core, SDL and Dear ImGui alike, as TSan needs both sides of a
+handover to see it -- and for ASan and TSan forces `TGE_ENABLE_GLOBAL_ALLOCATOR` off, since rpmalloc hides allocations and
 synchronisation from both. Run UBSan under **both** GCC and Clang: their check sets overlap but are not
 identical, and one proves nothing about the other.
 
@@ -92,7 +92,7 @@ same count without `-u` is the one that matters there.
 `scripts/asan_triage.py` and `scripts/tsan_triage.py` reduce a log to what belongs to this checkout --
 Klip's `src/` and tge-core's own sources, which are built and instrumented with it, but not the libraries
 tge-core vendors.
-Entering Qt, Mesa or glib puts Klip's frames on the stack of every error inside them, so ownership is
+Entering Mesa, glib or libwayland puts Klip's frames on the stack of every error inside them, so ownership is
 decided by which frame *performed* the access, not by which frames appear.
 
 ## Valgrind
@@ -109,7 +109,7 @@ almost nothing. Check with `nm -C <binary> | grep "T operator delete"`: it must 
 `KLIP_SANITIZER` build forces the flag off itself for ASan and TSan, which are blind to rpmalloc for the
 same reason.
 
-Memcheck is the only one of these with reach into FFmpeg, PipeWire, Qt and Mesa: it instruments at run
+Memcheck is the only one of these with reach into FFmpeg, PipeWire, Mesa and libwayland: it instruments at run
 time, so an access performed inside them is checked like any other. It is also cheaper here than its
 reputation, because a damage-driven capture is paced by the compositor rather than by Klip.
 
@@ -133,8 +133,8 @@ scripts/floor_build.sh
 ```
 
 `CMakeLists.txt` refuses GCC below 13 and Clang below 19, and a floor is only real once something has been
-built at it. The floor is Ubuntu 24.04 as a whole -- CMake 3.28, GCC 13, Clang 19, Qt 6.4.2 and FFmpeg
-6.1.1 -- so the script builds inside an `ubuntu:24.04` container rather than trusting whatever the host
+built at it. The floor is Ubuntu 24.04 as a whole -- CMake 3.28, GCC 13, Clang 19, FFmpeg 6.1.1 and the
+Wayland and X11 headers SDL builds against -- so the script builds inside an `ubuntu:24.04` container rather than trusting whatever the host
 has moved on to. It installs exactly the README's `apt install` line, so a dependency missing from that
 line fails here and not on a reader's machine; then it runs `make` as the README says, and builds Debug and
 Release with both compilers. `-Werror` is on, so a clean build is a result rather than an absence. It needs
@@ -161,16 +161,18 @@ the new.
 Run the smoke test against the binary it produces, not only the build. Compiling proves the headers agree;
 it says nothing about whether that libavcodec still encodes what Klip asks it for.
 
-**A machine without the dependencies stops at `Qt6` and prints nothing further, which reads like a pass.**
+**A machine without the dependencies stops at the first one missing and builds nothing, which reads like a
+pass.**
 Check the build reached a binary before believing it. And a transitive include is invisible until it is
 absent: `qToBigEndian` compiled on every machine it was tried on, behind a header Qt 6.10 supplies and
 Qt 6.4 does not, until a build against Qt 6.4 ran.
 
 ## What none of them cover
 
-FFmpeg, PipeWire, Qt and Mesa are compiled elsewhere, so a sanitizer sees an access inside them only if it
-intercepted the call. UBSan is the exception in the other direction: only Klip and tge-core carry its
-instrumentation, so anything it reports is ours and its silence is unambiguous.
+FFmpeg, PipeWire, Mesa and the Wayland and X11 libraries are compiled elsewhere, so a sanitizer sees an
+access inside them only if it intercepted the call. UBSan is the exception in the other direction: only
+what this tree compiles -- Klip, tge-core, SDL and Dear ImGui -- carries its instrumentation, so anything it
+reports is in code built here, and its silence is unambiguous.
 
 The memory capture path -- `SubmitMapped`, `sws_scale` and the frame ring -- runs only where the
 compositor offers no DMA-BUF. On hardware that offers one it is never exercised, by any of these.

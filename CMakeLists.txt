@@ -52,14 +52,32 @@ else()
 	add_compile_definitions(TGE_LOGGING_ENABLED)
 endif()
 
-# 6.4 is Ubuntu 24.04's; Klip uses only long-stable API.
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets)
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_ffmpeg.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_tracy.cmake)
 
 option(KLIP_BUILD_TESTS "Build Klip's test suite, from the googletest submodule" OFF)
+
+# A clone without --recurse-submodules has the mount points and nothing in them, which otherwise fails far from
+# here, as a missing header.
+set(KlipSubmoduleFiles
+	external/tge-core/CMakeLists.txt
+	external/json/single_include/nlohmann/json.hpp
+	external/sdl/CMakeLists.txt
+	external/imgui/imgui.h
+)
+
+if(KLIP_BUILD_TESTS)
+	list(APPEND KlipSubmoduleFiles external/googletest/CMakeLists.txt)
+endif()
+
+foreach(KlipSubmoduleFile IN LISTS KlipSubmoduleFiles)
+	if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${KlipSubmoduleFile})
+		message(FATAL_ERROR
+			"${KlipSubmoduleFile} is missing: the submodules were not checked out. From the source directory:\n"
+			"  git submodule update --init --recursive")
+	endif()
+endforeach()
 
 if(KLIP_BUILD_TESTS)
 	# Normal variables, which googletest's options honour; neither its installation nor gmock is wanted.
@@ -78,6 +96,10 @@ endif()
 
 # After Tracy: tge-core picks its profiling backend from whether Tracy::TracyClient already exists.
 add_subdirectory(external/tge-core EXCLUDE_FROM_ALL)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_sdl.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_imgui.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_embed.cmake)
 
 add_subdirectory(src/bus)
 add_subdirectory(src/capture)

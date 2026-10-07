@@ -137,34 +137,34 @@ currently nothing Klip can do about it from inside the portal's API.
 org.gnome.Mutter.ScreenCast interface takes explicit stream sizes, but using it would tie Klip to GNOME and
 abandon the portal, which is the opposite of the direction the rest of the capture path takes.
 
-## The region rectangle assumes Qt and the stream share a coordinate space
+## The region rectangle assumes SDL and the stream share a coordinate space
 
-Measured here: Qt reports the screen as 2880x1620 with a device pixel ratio of 1, which is exactly what
+Measured here: SDL reports the primary display as 2880x1620 at a pixel density of 1, which is exactly what
 PipeWire streams, so a rectangle dragged in the selector indexes stream pixels directly. Nothing enforces
-that. A second monitor, or a setup where Qt's logical geometry differs from the stream size, would crop
+that. A second monitor, or a setup where SDL's logical geometry differs from the stream size, would crop
 the wrong area with no warning.
 
 **What would settle it:** scaling the rectangle by stream size over screen geometry once the stream is
 running, which needs the selector's result to survive until after the portal answers.
 
-## tge-core's CLog does real work in a constructor, and Klip has four of them
+## tge-core's CLog does real work in a constructor, and every Klip library has one
 
 `CLog::CLog` registers with the log system, takes a mutex and inserts into a map, so an application-lifetime
 global like `Klip::gLog` allocates during static initialisation, where a failure cannot be caught. clang-tidy
-reports it as `bugprone-throwing-static-initialization` on the app's, and it is right: tge-core's own rule
-is that a constructor default-initialises members and nothing else, precisely so that globals are safe.
+reported it as `bugprone-throwing-static-initialization` on the app's while the app linked Qt and
+re-enabled exceptions, and it was right: tge-core's own rule is that a constructor default-initialises
+members and nothing else, precisely so that globals are safe.
 
-It is one rather than four because only the app still links Qt and re-enables exceptions; the bus, capture
-and encode libraries keep the global `-fno-exceptions`, under which the constructor cannot throw at all.
-The check is silent there on a build flag, not on a difference in the code -- all four loggers are the same
-declaration, and capture's dropped out of the report the moment it stopped linking Qt.
+With Qt gone every target keeps `-fno-exceptions`, under which the constructor cannot throw at all, and the
+check is silent on every logger -- on a build flag, not on a difference in the code, since they are all the
+same declaration.
 
 The static initialisation *order* is fine -- `GetLogSystem()` is a function-local static, constructed on
 first use -- and the practical risk is small, since a failed allocation that early ends the process anyway.
 What is not fine is that the pattern tge-core documents and the pattern `CLog` uses disagree.
 
 **What would settle it:** moving the registration out of the constructor, which is a change to tge-core and
-touches every project that logs. The check stays on here so it is not forgotten.
+touches every project that logs. With the check silent, this entry is what keeps it from being forgotten.
 
 ## The public headers are Linux-bound, and Windows is coming
 
@@ -186,15 +186,15 @@ anyone is a way to remove it that does not involve the source: the record is `in
 the build directory, so deleting the tree after installing leaves three files to be found by hand.
 
 The audience that would notice is the one that should not be compiling in the first place. The dependency
-line is thirteen packages before a single object is built -- `cmake` alone pulls about 68 of them and
-`qt6-base-dev` about 265 on Ubuntu 24.04 -- and every one of them has to stay installed afterwards.
+line is twenty-five packages before a single object is built -- `cmake` alone pulls about 68 of them on
+Ubuntu 24.04 -- and every one of them has to stay installed afterwards.
 
 **The licensing is the part that is not free.** Ubuntu's own `libavcodec.so.60` is configured
 `--enable-gpl`, measured rather than assumed, while `scripts/build_ffmpeg.sh` passes `--disable-gpl` for the
 reason its comment gives. The source path never has to care, because whoever compiles is whoever runs it and
 nothing is distributed. A `.deb` or an AppImage is distribution, so it either links an FFmpeg built the way
-that script builds it, or the binary it ships goes out under the GPL. Qt is LGPL and dynamically linked,
-which the current stance already satisfies; a bundle has to keep satisfying it.
+that script builds it, or the binary it ships goes out under the GPL. SDL and Dear ImGui are compiled in
+under zlib and MIT, which ask a bundle only to carry the notices `NOTICE` already lists.
 
 **Flatpak looks like the easy one and is not.** Capture goes through `xdg-desktop-portal`, which is exactly
 what a sandbox wants, but audio does not: Klip opens a PipeWire stream itself and there is no audio portal

@@ -1,29 +1,60 @@
 #include "level_meter.hpp"
 
+#include "format_to.hpp"
 #include "recorder/decibels.hpp"
 #include "recorder/level_ballistics.hpp"
 
-#include <QtGui/QFontMetrics>
-#include <QtGui/QLinearGradient>
-#include <QtGui/QPainter>
+#include <imgui.h>
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
+#include <string_view>
 
 namespace Klip
 {
 namespace
 {
-constexpr int BarHeight{ 10 };
-constexpr int BarSpacing{ 4 };
-constexpr int LabelWidth{ 14 };
-constexpr int MarkerWidth{ 2 };
+constexpr uint32_t NumChannels{ 2 };
 
-constexpr int      ScaleGap{ 3 };
-constexpr int      TickHeight{ 3 };
+constexpr float BarHeight{ 10.0f };
+constexpr float BarSpacing{ 4.0f };
+constexpr float LabelWidth{ 14.0f };
+constexpr float MarkerWidth{ 2.0f };
+constexpr float ScaleGap{ 3.0f };
+constexpr float TickHeight{ 3.0f };
+
 constexpr float    TickStepDecibels{ 6.0f };
 constexpr uint32_t NumTicks{ 10 };
 constexpr uint32_t LabelEveryNthTick{ 2 };
 
+constexpr float LabelFontSize{ 14.0f };
+constexpr float ScaleFontSize{ 13.0f };
+
+constexpr ImU32 LabelColor{ IM_COL32(140, 140, 140, 255) };
+constexpr ImU32 ScaleColor{ IM_COL32(110, 110, 110, 255) };
+constexpr ImU32 TroughColor{ IM_COL32(40, 40, 40, 255) };
+constexpr ImU32 HoldColor{ IM_COL32(235, 235, 235, 255) };
+constexpr ImU32 ClipColor{ IM_COL32(240, 60, 50, 255) };
+constexpr ImU32 UnavailableColor{ IM_COL32(222, 120, 100, 255) };
+
+struct SGradientStop final
+{
+	float position;
+	ImU32 color;
+};
+
+// Anchored to the scale rather than to the current level, so a colour always means the same loudness.
+constexpr std::array GradientStops
+{
+	SGradientStop{ 0.00f, IM_COL32(60, 185, 105, 255) },
+	SGradientStop{ 0.62f, IM_COL32(105, 205, 110, 255) },
+	SGradientStop{ 0.74f, IM_COL32(225, 190, 75, 255) },
+	SGradientStop{ 0.88f, IM_COL32(230, 140, 60, 255) },
+	SGradientStop{ 1.00f, IM_COL32(222, 60, 52, 255) }
+};
+
+//////////////////////////////////////////////////////////////////////////
 float ToPosition(float level)
 {
 	float const decibels{ std::clamp(Recorder::ToDecibels(level), Recorder::FloorDecibels, 0.0f) };
@@ -31,182 +62,142 @@ float ToPosition(float level)
 	return 1.0f - decibels / Recorder::FloorDecibels;
 }
 
-QFont ScaleFont(QFont const& base)
+//////////////////////////////////////////////////////////////////////////
+ImU32 LerpColor(ImU32 from, ImU32 to, float t)
 {
-	QFont font{ base };
-	font.setPointSizeF(font.pointSizeF() - 2.0);
+	ImVec4 const a{ ImGui::ColorConvertU32ToFloat4(from) };
+	ImVec4 const b{ ImGui::ColorConvertU32ToFloat4(to) };
 
-	return font;
+	return ImGui::ColorConvertFloat4ToU32(
+		ImVec4{ a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t });
 }
 
-int ScaleHeight(QFont const& base)
+//////////////////////////////////////////////////////////////////////////
+// Segment by segment, each one cut where the fill ends, so the colours stay where the scale puts them.
+void DrawFill(ImDrawList& drawList, ImVec2 const& min, float width, float height, float fill)
 {
-	return ScaleGap + TickHeight + 1 + QFontMetrics{ ScaleFont(base) }.height();
+	for (size_t index{ 1 }; index < GradientStops.size(); ++index)
+	{
+		SGradientStop const& from{ GradientStops[index - 1] };
+		SGradientStop const& to{ GradientStops[index] };
+		float const          end{ std::min(to.position, fill) };
+
+		if (end > from.position)
+		{
+			ImU32 const endColor{ LerpColor(from.color, to.color, (end - from.position) / (to.position - from.position)) };
+
+			drawList.AddRectFilledMultiColor(ImVec2{ min.x + width * from.position, min.y },
+			                                 ImVec2{ min.x + width * end, min.y + height }, from.color, endColor,
+			                                 endColor, from.color);
+		}
+	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 // Even ticks are honest only while the bar stays linear in decibels.
-void DrawScale(QPainter& painter, QRect const& bar, int top)
+void DrawScale(ImDrawList& drawList, float left, float width, float top, float scale)
 {
-	QFontMetrics const metrics{ painter.font() };
-	int const          baseline{ top + ScaleGap + TickHeight + 1 + metrics.ascent() };
-
-	painter.setPen(QColor{ 110, 110, 110 });
-	painter.setBrush(Qt::NoBrush);
+	std::array<char, 16> text{};
 
 	for (uint32_t step{ 0 }; step <= NumTicks; ++step)
 	{
 		float const decibels{ Recorder::FloorDecibels + static_cast<float>(step) * TickStepDecibels };
-		int const   x{ bar.left() + static_cast<int>(static_cast<float>(bar.width() - 1) *
-		                                            (1.0f - decibels / Recorder::FloorDecibels)) };
+		float const x{ left + width * (1.0f - decibels / Recorder::FloorDecibels) };
 
-		painter.drawLine(x, top + ScaleGap, x, top + ScaleGap + TickHeight);
+		drawList.AddLine(ImVec2{ x, top + ScaleGap * scale }, ImVec2{ x, top + (ScaleGap + TickHeight) * scale },
+		                 ScaleColor, scale);
 
 		if (step % LabelEveryNthTick == 0)
 		{
-			QString const text{ step == NumTicks ? QStringLiteral("0 dBFS")
-			                                     : QString::number(static_cast<int>(decibels)) };
-			int const     textWidth{ metrics.horizontalAdvance(text) };
-			int           textX{ x - textWidth / 2 };
+			std::string_view const label{ step == NumTicks ? FormatTo(text, "0 dBFS")
+			                                               : FormatTo(text, "{}", static_cast<int>(decibels)) };
+			float const            labelWidth{ ImGui::CalcTextSize(label.data(), label.data() + label.size()).x };
+			float                  labelX{ x - labelWidth / 2.0f };
 
 			if (step == 0)
 			{
-				textX = x;
+				labelX = x;
 			}
 			else if (step == NumTicks)
 			{
-				textX = x - textWidth;
+				labelX = x - labelWidth;
 			}
 
-			painter.drawText(QPoint{ textX, baseline }, text);
+			drawList.AddText(ImVec2{ labelX, top + (ScaleGap + TickHeight + 1.0f) * scale }, ScaleColor,
+			                 label.data(), label.data() + label.size());
 		}
 	}
-}
-
-// Anchored to the scale rather than to the current level, so a colour always means the same loudness.
-QLinearGradient MakeGradient(QRect const& bar)
-{
-	QLinearGradient gradient{ QPointF{ static_cast<qreal>(bar.left()), 0.0 },
-		                      QPointF{ static_cast<qreal>(bar.right()), 0.0 } };
-
-	gradient.setColorAt(0.00, QColor{ 60, 185, 105 });
-	gradient.setColorAt(0.62, QColor{ 105, 205, 110 });
-	gradient.setColorAt(0.74, QColor{ 225, 190, 75 });
-	gradient.setColorAt(0.88, QColor{ 230, 140, 60 });
-	gradient.setColorAt(1.00, QColor{ 222, 60, 52 });
-
-	return gradient;
 }
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
-CLevelMeter::CLevelMeter(QWidget* pParent)
-	: QWidget{ pParent }
+void DrawLevelMeter(Recorder::CLevelBallistics const& ballistics, float scale)
 {
-	SetChannelCount(2);
-}
+	ImDrawList& drawList{ *ImGui::GetWindowDrawList() };
+	ImVec2 const origin{ ImGui::GetCursorScreenPos() };
+	float const  width{ ImGui::GetContentRegionAvail().x };
+	float const  barsHeight{ static_cast<float>(NumChannels) * (BarHeight + BarSpacing) * scale - BarSpacing * scale };
 
-//////////////////////////////////////////////////////////////////////////
-void CLevelMeter::SetChannelCount(uint32_t numChannels)
-{
-	m_numChannels = std::min(numChannels, MaxChannels);
+	ImGui::PushFont(nullptr, ScaleFontSize);
 
-	// A form row will otherwise squeeze the widget below its hint and silently drop a channel.
-	setFixedHeight(sizeHint().height());
+	float const scaleHeight{ (ScaleGap + TickHeight + 1.0f) * scale + ImGui::GetTextLineHeight() };
 
-	updateGeometry();
-	update();
-}
+	ImGui::PopFont();
 
-//////////////////////////////////////////////////////////////////////////
-void CLevelMeter::SetBallistics(Recorder::CLevelBallistics const* pBallistics)
-{
-	m_pBallistics = pBallistics;
-
-	update();
-}
-
-//////////////////////////////////////////////////////////////////////////
-QSize CLevelMeter::sizeHint() const
-{
-	int const height{ static_cast<int>(m_numChannels) * (BarHeight + BarSpacing) - BarSpacing };
-
-	return QSize{ 160, std::max(height, BarHeight) + ScaleHeight(font()) };
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CLevelMeter::paintEvent(QPaintEvent* pEvent)
-{
-	QPainter painter{ this };
-	painter.setRenderHint(QPainter::Antialiasing, false);
-
-	QFont labelFont{ font() };
-	labelFont.setPointSizeF(labelFont.pointSizeF() - 1.0);
-	painter.setFont(labelFont);
-
-	if (m_pBallistics != nullptr && m_pBallistics->IsUnavailable())
+	if (ballistics.IsUnavailable())
 	{
-		painter.setPen(QColor{ 222, 120, 100 });
-		painter.drawText(rect(), Qt::AlignLeft | Qt::AlignVCenter,
-		                 tr("unavailable — pick another device"));
+		ImGui::PushFont(nullptr, LabelFontSize);
+		drawList.AddText(ImVec2{ origin.x, origin.y + (barsHeight + scaleHeight - ImGui::GetTextLineHeight()) / 2.0f },
+		                 UnavailableColor, "unavailable \xe2\x80\x94 pick another device");
+		ImGui::PopFont();
 	}
 	else
 	{
-		for (uint32_t index{ 0 }; index < m_numChannels; ++index)
+		float const barLeft{ origin.x + LabelWidth * scale };
+		float const barWidth{ width - LabelWidth * scale };
+		float const markerWidth{ MarkerWidth * scale };
+
+		ImGui::PushFont(nullptr, LabelFontSize);
+
+		for (uint32_t channel{ 0 }; channel < NumChannels; ++channel)
 		{
-			float const level{ m_pBallistics != nullptr ? m_pBallistics->GetLevel(index) : 0.0f };
-			float const hold{ m_pBallistics != nullptr ? m_pBallistics->GetHold(index) : 0.0f };
-			bool const  clipped{ m_pBallistics != nullptr && m_pBallistics->IsClipped(index) };
+			float const  top{ origin.y + static_cast<float>(channel) * (BarHeight + BarSpacing) * scale };
+			float const  barHeight{ BarHeight * scale };
+			ImVec2 const barMin{ barLeft, top };
+			char const*  pLabel{ channel == 0 ? "L" : "R" };
 
-			int const   top{ static_cast<int>(index) * (BarHeight + BarSpacing) };
-			QRect const bar{ LabelWidth, top, width() - LabelWidth, BarHeight };
+			drawList.AddText(ImVec2{ origin.x, top + (barHeight - ImGui::GetTextLineHeight()) / 2.0f }, LabelColor,
+			                 pLabel);
+			drawList.AddRectFilled(barMin, ImVec2{ barLeft + barWidth, top + barHeight }, TroughColor);
 
-			painter.setPen(QColor{ 140, 140, 140 });
-			painter.drawText(QRect{ 0, top, LabelWidth, BarHeight }, Qt::AlignLeft | Qt::AlignVCenter,
-			                 m_numChannels == 2 ? (index == 0 ? QStringLiteral("L") : QStringLiteral("R"))
-			                                    : QString::number(index + 1));
+			float const fill{ ToPosition(ballistics.GetLevel(channel)) };
 
-			painter.setPen(Qt::NoPen);
-			painter.setBrush(QColor{ 40, 40, 40 });
-			painter.drawRect(bar);
+			DrawFill(drawList, barMin, barWidth, barHeight, fill);
 
-			QLinearGradient const gradient{ MakeGradient(bar) };
+			float const filled{ barWidth * fill };
+			float const marker{ std::min(barWidth * ToPosition(ballistics.GetHold(channel)), barWidth - markerWidth) };
 
-			int const filled{ static_cast<int>(static_cast<float>(bar.width()) * ToPosition(level)) };
-
-			if (filled > 0)
+			// Only while it is ahead of the bar: a steady signal holds its own peak, and a marker sitting on the
+			// tip marks nothing -- on a quiet input it is all there is to see.
+			if (marker > filled + markerWidth)
 			{
-				painter.setBrush(gradient);
-				painter.drawRect(QRect{ bar.left(), bar.top(), filled, bar.height() });
+				drawList.AddRectFilled(ImVec2{ barLeft + marker, top },
+				                       ImVec2{ barLeft + marker + markerWidth, top + barHeight }, HoldColor);
 			}
 
-			int const marker{ std::min(static_cast<int>(static_cast<float>(bar.width()) *
-			                                           ToPosition(hold)),
-			                           bar.width() - MarkerWidth) };
-
-			// Only while it is ahead of the bar: a steady signal holds its own peak, and a marker
-			// sitting on the tip marks nothing -- on a quiet input it is all there is to see.
-			if (marker > filled + MarkerWidth)
+			if (ballistics.IsClipped(channel))
 			{
-				painter.setBrush(QColor{ 235, 235, 235 });
-				painter.drawRect(QRect{ bar.left() + marker, bar.top(), MarkerWidth, bar.height() });
-			}
-
-			if (clipped)
-			{
-				painter.setBrush(QColor{ 240, 60, 50 });
-				painter.drawRect(QRect{ bar.right() - MarkerWidth, bar.top(), MarkerWidth,
-				                        bar.height() });
+				drawList.AddRectFilled(ImVec2{ barLeft + barWidth - markerWidth, top },
+				                       ImVec2{ barLeft + barWidth, top + barHeight }, ClipColor);
 			}
 		}
 
-		if (m_numChannels > 0)
-		{
-			int const   top{ static_cast<int>(m_numChannels) * (BarHeight + BarSpacing) - BarSpacing };
-			QRect const bar{ LabelWidth, 0, width() - LabelWidth, BarHeight };
-
-			painter.setFont(ScaleFont(font()));
-			DrawScale(painter, bar, top);
-		}
+		ImGui::PopFont();
+		ImGui::PushFont(nullptr, ScaleFontSize);
+		DrawScale(drawList, barLeft, barWidth - scale, origin.y + barsHeight, scale);
+		ImGui::PopFont();
 	}
+
+	ImGui::Dummy(ImVec2{ width, barsHeight + scaleHeight });
 }
 } // namespace Klip

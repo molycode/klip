@@ -7,3 +7,9 @@
 [submodule "external/json"]
 	path = external/json
 	url = https://github.com/nlohmann/json
+[submodule "external/sdl"]
+	path = external/sdl
+	url = https://github.com/libsdl-org/SDL
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui

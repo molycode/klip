@@ -2,8 +2,9 @@
 #
 # Reads an AddressSanitizer log and answers the only question that matters: how much of it is ours.
 # Hard errors first, then leaks grouped by the frame that allocated them. A leak whose innermost frame
-# is a third-party library is that library's cache, not a bug here -- Qt's D-Bus type registry and
-# fontconfig's substitution tables both live for the process and account for most of a run's total.
+# is a third-party library is that library's cache, not a bug here -- GTK, pango and fontconfig, which
+# libdecor's GTK plugin loads to draw the title bar, keep theirs for the process and account for most of a
+# run's total.
 
 import argparse
 import collections
@@ -11,7 +12,7 @@ import re
 import sys
 from pathlib import Path
 
-# Qt and other vendors ship their own build paths in frames, and theirs contain "/src/" too, so
+# Other vendors ship their own build paths in frames, and theirs contain "/src/" too, so
 # ownership is decided by this checkout's root rather than by a fragment.
 REPO = Path(__file__).resolve().parent.parent
 

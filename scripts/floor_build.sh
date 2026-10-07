@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Klip at its declared floor: Ubuntu 24.04's CMake, GCC 13, Clang 19, Qt and FFmpeg, inside a container,
+# Builds Klip at its declared floor: Ubuntu 24.04's CMake, GCC 13, Clang 19 and FFmpeg, inside a container,
 # from a copy of this tree without CMakeUserPresets.json, and runs the test suite in the Debug builds. The
 # packages are read from the README's apt line, so a dependency missing from it fails here rather than on a
 # reader's machine.

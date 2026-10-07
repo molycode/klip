@@ -5,7 +5,6 @@ target_compile_options(KlipCompileFlags INTERFACE
 	-Wextra
 	-Werror
 	-Wno-unused-parameter
-	# Targets that link Qt re-enable this per target; a later -fexceptions on the command line wins.
 	$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
 	$<$<COMPILE_LANGUAGE:CXX>:-stdlib=libstdc++>
 )

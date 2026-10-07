@@ -3,21 +3,8 @@ Copyright (c) 2026 moly
 
 This software is released under the MIT License; see LICENSE.
 
-Klip links the following third-party libraries, which carry their own terms.
+Klip links or compiles in the following third-party code, which carries its own terms.
 Klip's own source remains under the MIT License.
-
---------------------------------------------------------------------------------
-Qt 6
---------------------------------------------------------------------------------
-Klip uses the Qt framework (Qt Core, Qt DBus, Qt Gui, Qt Network and Qt
-Widgets) under the GNU Lesser General Public License version 3.
-
-    https://www.qt.io/
-    https://www.gnu.org/licenses/lgpl-3.0.html
-
-Qt is linked dynamically and is not modified or redistributed with Klip. A
-recipient may replace the Qt libraries with their own interface-compatible
-build.
 
 --------------------------------------------------------------------------------
 FFmpeg
@@ -32,6 +19,36 @@ version 2.1 or later.
 FFmpeg is linked dynamically and is not modified or redistributed with Klip.
 Klip requires an FFmpeg built without --enable-gpl: a GPL-configured libavcodec
 would place any distributed Klip binary under the GPL.
+
+--------------------------------------------------------------------------------
+SDL 3
+--------------------------------------------------------------------------------
+Klip compiles in SDL 3 (Simple DirectMedia Layer) under the zlib License.
+
+    Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+    https://libsdl.org/
+
+SDL contains code under licences of its own, and is built with code generated
+from Wayland protocol descriptions. Their notices are in
+assets/licences/sdl-bundled.txt and assets/licences/sdl-wayland-protocols.txt.
+
+--------------------------------------------------------------------------------
+Dear ImGui
+--------------------------------------------------------------------------------
+Klip compiles in Dear ImGui under the MIT License.
+
+    Copyright (c) 2014-2026 Omar Cornut
+    https://github.com/ocornut/imgui
+
+--------------------------------------------------------------------------------
+Roboto and Font Awesome Free
+--------------------------------------------------------------------------------
+Klip compiles in two fonts. Roboto is under the Apache License 2.0. Font
+Awesome Free 6.7.2 by Fonticons, Inc. is under the SIL Open Font License 1.1,
+and its icons under CC BY 4.0. Both licences are in assets/fonts.
+
+    https://fonts.google.com/specimen/Roboto
+    https://fontawesome.com/
 
 --------------------------------------------------------------------------------
 JSON for Modern C++
