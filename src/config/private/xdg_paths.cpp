@@ -93,6 +93,20 @@ std::filesystem::path GetConfigHome()
 }
 
 //////////////////////////////////////////////////////////////////////////
+std::filesystem::path GetStateHome()
+{
+	std::filesystem::path stateHome{ GetAbsoluteVariable("XDG_STATE_HOME") };
+	std::filesystem::path const home{ GetHome() };
+
+	if (stateHome.empty() && !home.empty())
+	{
+		stateHome = home / ".local" / "state";
+	}
+
+	return stateHome;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // As QStandardPaths finds MoviesLocation, which every Klip.conf directory default was made from.
 std::filesystem::path GetVideosDirectory(std::filesystem::path const& configHome, std::filesystem::path const& home)
 {

@@ -4,6 +4,7 @@
 
 #include "application.hpp"
 #include "bus/connection.hpp"
+#include "config/xdg_paths.hpp"
 #include "desktop/single_instance.hpp"
 #include "log.hpp"
 
@@ -14,12 +15,23 @@
 #include <tge/logging/log_system.hpp>
 #include <tge/profiling/profiler_hooks.hpp>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <functional>
+#include <string>
 #include <string_view>
+#include <system_error>
+#include <vector>
 
 namespace
 {
+constexpr size_t           MaxLogFiles{ 10 };
+constexpr std::string_view LogFilePrefix{ "klip_" };
+constexpr std::string_view LogFileExtension{ ".log" };
+
 bool WantsVersion(int argc, char const* const* argv)
 {
 	bool wanted{ false };
@@ -33,6 +45,75 @@ bool WantsVersion(int argc, char const* const* argv)
 	}
 
 	return wanted;
+}
+
+// Created here because the log system's own create_directories is the throwing overload.
+std::filesystem::path MakeLogsDirectory(std::error_code& error)
+{
+	std::filesystem::path const stateHome{ Klip::Config::GetStateHome() };
+	std::filesystem::path       logsDir{};
+
+	if (!stateHome.empty())
+	{
+		logsDir = stateHome / "klip" / "logs";
+		std::filesystem::create_directories(logsDir, error);
+	}
+
+	return logsDir;
+}
+
+void ReportLogsDirectory(std::filesystem::path const& logsDir, std::error_code const& error)
+{
+	if (logsDir.empty())
+	{
+		Klip::gLog.Warning("Neither XDG_STATE_HOME nor HOME is an absolute path; logging to the terminal only");
+	}
+	else if (error.value() != 0)
+	{
+		Klip::gLog.Warning("Cannot create the log directory '{}', logging to the terminal only: {}", logsDir.string(),
+		                   error.message());
+	}
+}
+
+// Names carry the start time, so sorting them sorts the logs by age.
+void PruneLogs(std::filesystem::path const& logsDir)
+{
+	std::vector<std::filesystem::path> logFiles{};
+	std::error_code                    error{};
+
+	for (std::filesystem::directory_iterator it{ logsDir, error }, end{}; error.value() == 0 && it != end;
+	     it.increment(error))
+	{
+		std::string const name{ it->path().filename().string() };
+
+		if (name.starts_with(LogFilePrefix) && name.ends_with(LogFileExtension))
+		{
+			logFiles.emplace_back(it->path());
+		}
+	}
+
+	if (error.value() == 0)
+	{
+		std::ranges::sort(logFiles, std::ranges::greater{});
+
+		for (size_t index{ MaxLogFiles }; index < logFiles.size(); ++index)
+		{
+			std::error_code removeError{};
+
+			std::filesystem::remove(logFiles[index], removeError);
+
+			if (removeError.value() != 0)
+			{
+				Klip::gLog.Warning("Cannot remove the old log file '{}': {}", logFiles[index].string(),
+				                   removeError.message());
+			}
+		}
+	}
+	else
+	{
+		Klip::gLog.Warning("Cannot list the log directory '{}' to remove old logs: {}", logsDir.string(),
+		                   error.message());
+	}
 }
 
 // The first Klip of the session, from PipeWire to the end of the event loop.
@@ -92,7 +173,11 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	Tge::Logging::GetLogSystem().Initialize("klip");
+	std::error_code             logsError{};
+	std::filesystem::path const logsDir{ MakeLogsDirectory(logsError) };
+	bool const                  hasLogsDir{ !logsDir.empty() && logsError.value() == 0 };
+
+	Tge::Logging::GetLogSystem().Initialize("klip", hasLogsDir ? logsDir.string() : std::string{});
 
 	// Before Tge::Initialize, where the job pool spawns: a thread started after the hooks are in place
 	// is a thread the profiler can name.
@@ -110,6 +195,13 @@ int main(int argc, char** argv)
 
 	if (initialized)
 	{
+		ReportLogsDirectory(logsDir, logsError);
+
+		if (hasLogsDir)
+		{
+			PruneLogs(logsDir);
+		}
+
 		bool connected{ false };
 
 		// After tge-core, whose thread it runs on; every portal call, the tray and single instance go through it.

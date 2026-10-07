@@ -136,8 +136,8 @@ If you cloned without `--recurse-submodules`, `git submodule update --init --rec
 
 **Reporting a bug? Build `make BUILD_TYPE=RelWithDebInfo` instead.** Release compiles logging out and
 carries no symbols, so a crash there gives an address and nothing to read beside it. RelWithDebInfo is
-optimised and keeps both, and writes a log to `logs/` next to wherever you started it. Send that, and
-the output of `klip --version`.
+optimised and keeps both, and writes a log to `~/.local/state/klip/logs` (`$XDG_STATE_HOME/klip/logs` when
+that is set), keeping the newest ten. Send that, and the output of `klip --version`.
 
 ### Working on Klip
 

@@ -29,6 +29,7 @@ from urllib.parse import unquote, urlparse
 
 REPO = Path(__file__).resolve().parent.parent
 CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "klip" / "config.json"
+LOGS = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "klip" / "logs"
 
 DIRECTORY_SETTING = "output.directory"
 
@@ -517,7 +518,7 @@ def run(args):
 		return 1
 
 	directory = Path(tempfile.mkdtemp(prefix="klip-smoke-"))
-	logs_before = set(REPO.glob("logs/klip_*.log"))
+	logs_before = set(LOGS.glob("klip_*.log"))
 	previous = write_setting(CONF, DIRECTORY_SETTING, str(directory))
 
 	print(f"recording {'the whole screen' if source == 'screen' else 'the remembered window'} for "
@@ -594,7 +595,7 @@ def run(args):
 		else:
 			write_setting(CONF, DIRECTORY_SETTING, previous)
 
-	logs_after = set(REPO.glob("logs/klip_*.log")) - logs_before
+	logs_after = set(LOGS.glob("klip_*.log")) - logs_before
 	claimed = read_klip_log(max(logs_after, key=lambda path: path.stat().st_mtime)) if logs_after else {}
 	if not claimed:
 		print("that binary wrote no log, so there is nothing to gate its own claims against: Release "
