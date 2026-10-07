@@ -20,7 +20,7 @@
 
 namespace
 {
-bool WantsVersion(int argc, char** argv)
+bool WantsVersion(int argc, char const* const* argv)
 {
 	bool wanted{ false };
 
@@ -81,6 +81,7 @@ int RunKlip()
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// NOLINTNEXTLINE(misc-const-correctness): the standard fixes main's signature.
 int main(int argc, char** argv)
 {
 	// Answered before the log system and SDL, so it works over ssh and on a machine with no display.

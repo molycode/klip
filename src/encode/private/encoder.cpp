@@ -102,7 +102,7 @@ AVPixelFormat ToAvFormat(Capture::EPixelFormat format)
 	return avFormat;
 }
 
-void FreeDrmDescriptor(void* pOpaque, uint8_t* pData)
+void FreeDrmDescriptor(void*, uint8_t* pData)
 {
 	// The descriptor only; the descriptors' file descriptors belong to PipeWire.
 	av_free(pData);
@@ -301,7 +301,7 @@ bool CEncoder::OpenFilterGraph(SSettings const& settings)
 			}
 			else
 			{
-				AVBufferRef* const pSinkFrames{ av_buffersink_get_hw_frames_ctx(m_pGraphSink) };
+				AVBufferRef const* const pSinkFrames{ av_buffersink_get_hw_frames_ctx(m_pGraphSink) };
 
 				if (pSinkFrames == nullptr)
 				{

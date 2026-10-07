@@ -414,7 +414,7 @@ void CPortalSession::OnSessionCreated(sd_bus* pBus, sd_bus_message* pResults)
 		                         [this, &options](sd_bus_message* pCall, std::string const& token) {
 			                         options.push_back({ "handle_token", token });
 
-			                         int result{ sd_bus_message_append(pCall, "o", m_sessionHandle.c_str()) };
+			                         int const result{ sd_bus_message_append(pCall, "o", m_sessionHandle.c_str()) };
 
 			                         return result < 0 ? result : Bus::AppendOptions(pCall, options);
 		                         }) };
@@ -432,7 +432,7 @@ void CPortalSession::OnSourcesSelected(sd_bus* pBus)
 	TGE_PROFILE_SCOPE_N("Portal: start");
 
 	bool const sent{ Request(pBus, EStep::Start, "Start", [this](sd_bus_message* pCall, std::string const& token) {
-		int result{ sd_bus_message_append(pCall, "os", m_sessionHandle.c_str(), "") };
+		int const result{ sd_bus_message_append(pCall, "os", m_sessionHandle.c_str(), "") };
 
 		return result < 0 ? result : Bus::AppendOptions(pCall, { { "handle_token", token } });
 	}) };
@@ -550,7 +550,7 @@ void CPortalSession::Finish(sd_bus* pBus, SPortalGrant const& grant)
 
 	m_busy = false;
 
-	ResultCallback callback{ std::move(m_callback) };
+	ResultCallback const callback{ std::move(m_callback) };
 	m_callback = nullptr;
 
 	if (callback)

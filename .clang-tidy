@@ -11,22 +11,20 @@ Checks: >
   misc-*,
   -clang-analyzer-optin.core.EnumCastOutOfRange,
   -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape,
+  -bugprone-signed-bitwise,
   -misc-include-cleaner,
   -misc-unused-parameters,
-  -misc-const-correctness,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes
 
-# Klip's own headers. Qt, FFmpeg, PipeWire and tge-core are not ours to fix, and tge-core's enums trip
-# performance-enum-size from here.
-HeaderFilterRegex: 'src/(app|bus|capture|desktop|encode)/'
+# Klip's own headers. SDL, Dear ImGui, FFmpeg, PipeWire and tge-core are not ours to fix, and tge-core's
+# enums trip performance-enum-size from here.
+HeaderFilterRegex: 'src/(app|bus|capture|config|desktop|encode|json|recorder)/'
 
 # clang-analyzer-optin.core.EnumCastOutOfRange: PipeWire, FFmpeg and libva flag enums are meant to be
 #   OR'd, and every OR produces a value that is not a named enumerator.
 # bugprone-easily-swappable-parameters: every (width, height) and (x, y) pair trips it.
-# bugprone-exception-escape: main. The app target links Qt with -fexceptions, but the project does not use
-#   exceptions and an escape would terminate either way.
+# bugprone-signed-bitwise: PipeWire, FFmpeg and Dear ImGui take their flags as plain int, so every OR of
+#   them is signed.
 # misc-include-cleaner: 448 findings, and it disagrees with the include rules this project follows.
 # misc-unused-parameters: callback and override signatures are mandated by the interface they implement.
-# misc-const-correctness: cannot see Qt's non-const API through a pointer, nor a later move.

@@ -495,7 +495,7 @@ int CTray::OnRequest(sd_bus_message* pCall, ERequest kind)
 int CTray::OnProvideActivationToken(sd_bus_message* pCall)
 {
 	char const* pToken{ nullptr };
-	int result{ sd_bus_message_read(pCall, "s", &pToken) };
+	int const result{ sd_bus_message_read(pCall, "s", &pToken) };
 
 	if (result >= 0 && m_onRequest)
 	{
@@ -630,7 +630,7 @@ int CTray::OnEvent(sd_bus_message* pCall)
 {
 	int32_t id{ 0 };
 	char const* pEvent{ nullptr };
-	int result{ sd_bus_message_read(pCall, "is", &id, &pEvent) };
+	int const result{ sd_bus_message_read(pCall, "is", &id, &pEvent) };
 
 	if (result >= 0 && std::string_view{ pEvent } == "clicked" && m_onRequest)
 	{

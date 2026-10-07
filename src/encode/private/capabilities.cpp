@@ -63,7 +63,7 @@ AVBufferRef* MakeProbeFrames(AVBufferRef* pDeviceRef)
 // Asking libva for the profile list is not enough: it reports decode-only profiles the encoder cannot
 // use, and av1_vaapi additionally refuses a driver without VAConfigAttribEncAV1Ext2. Opening it answers
 // the whole question.
-bool CanEncode(ECodec codec, AVBufferRef* pFramesRef)
+bool CanEncode(ECodec codec, AVBufferRef const* pFramesRef)
 {
 	TGE_PROFILE_SCOPE_N("Probe: encoder open");
 
@@ -215,7 +215,7 @@ bool IsCodecOffered(ECodec codec)
 {
 	bool anyEncodes{ false };
 
-	for (bool encodes : gCapabilities.encodes)
+	for (bool const encodes : gCapabilities.encodes)
 	{
 		anyEncodes = anyEncodes || encodes;
 	}

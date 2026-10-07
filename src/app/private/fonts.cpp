@@ -20,8 +20,8 @@ constexpr std::array<ImWchar, 5> IconExcludedRanges{ 0x0001, 0xDFFF, 0xF900, 0xF
 // AddFontFromMemoryTTF takes a mutable pointer but only reads the data when the atlas does not own it.
 bool LoadFonts()
 {
-	ImGuiIO&     io{ ImGui::GetIO() };
-	ImFontConfig textConfig{};
+	ImGuiIO const& io{ ImGui::GetIO() };
+	ImFontConfig   textConfig{};
 
 	textConfig.FontDataOwnedByAtlas = false;
 

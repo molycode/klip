@@ -233,7 +233,7 @@ void CStreamImpl::Fixate(spa_pod_prop const* pProperty)
 {
 	uint32_t numValues{ 0 };
 	uint32_t choiceType{ 0 };
-	spa_pod* pValues{ spa_pod_get_values(&pProperty->value, &numValues, &choiceType) };
+	spa_pod const* pValues{ spa_pod_get_values(&pProperty->value, &numValues, &choiceType) };
 
 	if (pValues == nullptr || numValues < 2)
 	{
