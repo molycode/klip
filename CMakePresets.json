@@ -63,6 +63,16 @@
       }
     },
     {
+      "name": "linux-gcc-asanubsan",
+      "displayName": "linux_gcc_asanubsan",
+      "description": "AddressSanitizer and UndefinedBehaviorSanitizer together with GCC, on top of RelWithDebInfo",
+      "inherits": "linux-gcc-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/gcc-asanubsan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "address,undefined"
+      }
+    },
+    {
       "name": "linux-gcc-ubsan",
       "displayName": "linux_gcc_ubsan",
       "description": "UndefinedBehaviorSanitizer with GCC, on top of RelWithDebInfo",
@@ -126,6 +136,16 @@
       }
     },
     {
+      "name": "linux-clang-asanubsan",
+      "displayName": "linux_clang_asanubsan",
+      "description": "AddressSanitizer and UndefinedBehaviorSanitizer together with Clang, on top of RelWithDebInfo",
+      "inherits": "linux-clang-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/clang-asanubsan",
+      "cacheVariables": {
+        "KLIP_SANITIZER": "address,undefined"
+      }
+    },
+    {
       "name": "linux-clang-ubsan",
       "displayName": "linux_clang_ubsan",
       "description": "UndefinedBehaviorSanitizer with Clang, on top of RelWithDebInfo",
@@ -164,6 +184,10 @@
       "configurePreset": "linux-gcc-asan"
     },
     {
+      "name": "linux-gcc-asanubsan",
+      "configurePreset": "linux-gcc-asanubsan"
+    },
+    {
       "name": "linux-gcc-ubsan",
       "configurePreset": "linux-gcc-ubsan"
     },
@@ -186,6 +210,10 @@
     {
       "name": "linux-clang-asan",
       "configurePreset": "linux-clang-asan"
+    },
+    {
+      "name": "linux-clang-asanubsan",
+      "configurePreset": "linux-clang-asanubsan"
     },
     {
       "name": "linux-clang-ubsan",

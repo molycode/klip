@@ -50,11 +50,15 @@ cmake --preset linux-gcc-asan && cmake --build --preset linux-gcc-asan
 python3 scripts/smoke_test.py --klip build/gcc-asan/src/app/klip --quit
 ```
 
-`address`, `undefined` and `thread` each have a preset for both compilers. The option instruments
+`address`, `undefined`, `address,undefined` and `thread` each have a preset for both compilers. The option instruments
 everything compiled from source -- Klip and tge-core alike, as TSan needs both sides of a handover to see
 it -- and for ASan and TSan forces `TGE_ENABLE_GLOBAL_ALLOCATOR` off, since rpmalloc hides allocations and
 synchronisation from both. Run UBSan under **both** GCC and Clang: their check sets overlap but are not
 identical, and one proves nothing about the other.
+
+In an `address,undefined` build Clang has one runtime and one `log_path`, and `UBSAN_OPTIONS` overrides
+`ASAN_OPTIONS`: name a log path in only one of them, or the ASan report lands in the UBSan file. GCC links
+two runtimes and keeps them apart.
 
 **Silence is only evidence if the instrumentation is there.** A sanitizer that was never linked reports
 nothing, which reads exactly like a clean run. GCC leaves undefined references, so
