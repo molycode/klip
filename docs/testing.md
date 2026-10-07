@@ -43,16 +43,18 @@ bitstream is destroyed, so the decode gate reads what it printed instead.
 
 ## Sanitizers
 
-Configure a build with the flags and run the smoke test against it, passing `--quit`.
+Configure a build with `KLIP_SANITIZER` and run the smoke test against it, passing `--quit`.
 
 ```bash
-cmake -S . -B build/asan -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-      -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer" \
-      -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
+cmake --preset linux-gcc-asan && cmake --build --preset linux-gcc-asan
+python3 scripts/smoke_test.py --klip build/gcc-asan/src/app/klip --quit
 ```
 
-`-fsanitize=thread` and `-fsanitize=undefined` the same way. Run UBSan under **both** GCC and Clang: their
-check sets overlap but are not identical, and one proves nothing about the other.
+`address`, `undefined` and `thread` each have a preset for both compilers. The option instruments
+everything compiled from source -- Klip and tge-core alike, as TSan needs both sides of a handover to see
+it -- and for ASan and TSan forces `TGE_ENABLE_GLOBAL_ALLOCATOR` off, since rpmalloc hides allocations and
+synchronisation from both. Run UBSan under **both** GCC and Clang: their check sets overlap but are not
+identical, and one proves nothing about the other.
 
 **Silence is only evidence if the instrumentation is there.** A sanitizer that was never linked reports
 nothing, which reads exactly like a clean run. GCC leaves undefined references, so
@@ -137,7 +139,7 @@ Qt 6.4 does not, until a build against Qt 6.4 ran.
 ## What none of them cover
 
 FFmpeg, PipeWire, Qt and Mesa are compiled elsewhere, so a sanitizer sees an access inside them only if it
-intercepted the call. UBSan is the exception in the other direction: only Klip's own code carries its
+intercepted the call. UBSan is the exception in the other direction: only Klip and tge-core carry its
 instrumentation, so anything it reports is ours and its silence is unambiguous.
 
 The memory capture path -- `SubmitMapped`, `sws_scale` and the frame ring -- runs only where the

@@ -34,6 +34,10 @@ if(NOT TARGET KlipCompileFlags)
 	include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/compile_flags.cmake)
 endif()
 
+# Outside that guard, so a parent that already made KlipCompileFlags still builds Klip instrumented; and
+# before Tracy and tge-core, so they are.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/sanitizer.cmake)
+
 # Generator expressions rather than a CMAKE_BUILD_TYPE test, so these survive a multi-config generator.
 add_compile_definitions($<$<CONFIG:Debug>:KLIP_DEBUG>)
 add_compile_definitions($<$<CONFIG:Debug>:TGE_DEBUG_ENABLED>)
