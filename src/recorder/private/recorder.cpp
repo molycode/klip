@@ -545,7 +545,7 @@ void CRecorder::RefreshCodecs()
 //////////////////////////////////////////////////////////////////////////
 void CRecorder::RefreshMonitoring()
 {
-	bool const canMonitor{ m_visible && m_state == EState::Idle };
+	bool const canMonitor{ m_visible && m_state == EState::Idle && CarriesAudio() };
 
 	for (size_t index{ 0 }; index < NumAudioSources; ++index)
 	{
@@ -685,7 +685,7 @@ void CRecorder::UpdateQualityHint()
 	uint64_t bitsPerSecond{ Encode::EstimateBitsPerSecond(m_settings.codec, m_settings.quality, m_screen.width,
 	                                                      m_screen.height, rate) };
 
-	if (WantsAudio(EAudioSource::System) || WantsAudio(EAudioSource::Microphone))
+	if (CarriesAudio() && (WantsAudio(EAudioSource::System) || WantsAudio(EAudioSource::Microphone)))
 	{
 		bitsPerSecond += static_cast<uint64_t>(Encode::GetAudioBitsPerSecond(m_settings.audioQuality));
 	}
