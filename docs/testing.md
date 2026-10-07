@@ -132,13 +132,15 @@ branches, everything a given machine's hardware never reaches.
 scripts/floor_build.sh
 ```
 
-`CMakeLists.txt` refuses GCC below 13 and Clang below 19, and a floor is only real once something has been
-built at it. The floor is Ubuntu 24.04 as a whole -- CMake 3.28, GCC 13, Clang 19, FFmpeg 6.1.1 and the
-Wayland and X11 headers SDL builds against -- so the script builds inside an `ubuntu:24.04` container rather than trusting whatever the host
-has moved on to. It installs exactly the README's `apt install` line, so a dependency missing from that
-line fails here and not on a reader's machine; then it runs `make` as the README says, and builds Debug and
-Release with both compilers. `-Werror` is on, so a clean build is a result rather than an absence. It needs
-Docker and nothing else from the host.
+`CMakeLists.txt` refuses GCC below 14 and Clang below 19, and a floor is only real once something has been
+built at it. The floor is Ubuntu 24.04's libraries -- FFmpeg 6.1.1, PipeWire 1.0 and the Wayland and X11
+headers SDL builds against -- with the build tools C++26 needs on top: its own `g++-14` and `clang-19`, and
+CMake 3.30, which the container takes from Kitware's release because 24.04 ships 3.28. The script builds
+inside an `ubuntu:24.04` container rather than trusting whatever the host has moved on to. It installs
+exactly the README's `apt install` line, so a dependency missing from that line fails here and not on a
+reader's machine; then it runs `make` as the README says, and builds Debug and Release with both compilers.
+`-Werror` is on, so a clean build is a result rather than an absence. It needs Docker and nothing else from
+the host.
 
 Give a compiler the libstdc++ that sits beside it, which is what a user on a stock distribution has.
 Pairing a distribution Clang with a much newer GCC's libstdc++ instead fails in `bits/atomic_wait.h` on

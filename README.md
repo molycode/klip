@@ -71,10 +71,12 @@ of a quiet desktop can come in at half that or less.
 
 ## Requirements
 
-- C++23 compiler — GCC 13+ or Clang 19+. GCC 16 and Clang 23 are the toolchains Klip is developed on;
-  the floor is built and checked at GCC 13 and Clang 19 rather than merely declared. Ubuntu 24.04's default
-  `clang` is 18, which cannot use its `std::expected`; install `clang-19` there.
-- CMake 3.28+
+- C++26 compiler — GCC 14+ or Clang 19+. GCC 16 and Clang 23 are the toolchains Klip is developed on;
+  the floor is built and checked at GCC 14 and Clang 19 rather than merely declared. Ubuntu 24.04's default
+  `g++` is 13, and its default `clang` is 18, which cannot use its `std::expected`; install `g++-14` or
+  `clang-19` there.
+- CMake 3.30+, the first that knows GCC's C++26 flag. Ubuntu 24.04 ships 3.28: take a newer one from
+  [cmake.org](https://cmake.org/download/) and put it ahead of the system one on `PATH`.
 - Ninja — every preset names it as the generator
 - A desktop running `xdg-desktop-portal` with a ScreenCast backend, and PipeWire 1.0+
 - A VAAPI driver that can encode, such as `mesa-va-drivers`. Klip opens each encoder once at startup
@@ -95,7 +97,7 @@ X11 path and none is needed.
 - **libsystemd 246+** — its sd-bus is how Klip talks to the desktop portal, so a distribution without
   systemd cannot build Klip
 
-Ubuntu 24.04 and newer carry all of them:
+Ubuntu 24.04 and newer carry all of them, with 24.04's compiler and CMake raised as above:
 
 ```bash
 sudo apt install build-essential cmake ninja-build pkg-config \
@@ -116,6 +118,9 @@ cd klip
 make
 sudo make install
 ```
+
+On Ubuntu 24.04, whose `g++` is 13, the first `make` names the newer one: `make CXX=g++-14 CC=gcc-14`.
+The build directory keeps that choice, so later `make` and `make install` need nothing extra.
 
 `make` builds Release and prints where the binary landed; `make install` puts it on the prefix along
 with a desktop entry and an icon, so Klip appears in the applications menu. `PREFIX` chooses somewhere
@@ -147,7 +152,7 @@ Presets: `linux-{gcc,clang}-{debug,release,relwithdebinfo}`. They use whatever `
 `PATH`; the pinned toolchains live in `CMakeUserPresets.json`, which is machine-specific and not in the
 repo.
 
-If your distribution's compiler is older than GCC 13, install a newer one and hand it to the preset,
+If your distribution's compiler is older than GCC 14, install a newer one and hand it to the preset,
 which keeps the generator and the build type that configuring by hand would drop:
 
 ```bash

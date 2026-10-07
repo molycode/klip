@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.28.0)
+cmake_minimum_required(VERSION 3.30.0)
 
 project(Klip VERSION 0.1.0 LANGUAGES C CXX)
 
 # C is here for tge-core's rpmalloc, not for Klip's own code.
 if(PROJECT_IS_TOP_LEVEL)
-	set(CMAKE_CXX_STANDARD 23)
+	set(CMAKE_CXX_STANDARD 26)
 	set(CMAKE_CXX_STANDARD_REQUIRED ON)
 	set(CMAKE_CXX_EXTENSIONS OFF)
 	set(CMAKE_CONFIGURATION_TYPES Debug RelWithDebInfo Release)
@@ -14,14 +14,14 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 # Named and checked, or a too-old toolchain reports the floor as a template backtrace out of <print>.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
 	message(FATAL_ERROR
-		"Klip needs GCC 13 or newer for C++23; found ${CMAKE_CXX_COMPILER_VERSION}. "
+		"Klip needs GCC 14 or newer for C++26; found ${CMAKE_CXX_COMPILER_VERSION}. "
 		"Install a newer g++ and configure with -DCMAKE_CXX_COMPILER=g++-<version>.")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
-	# libstdc++ 13 gates std::expected on a __cpp_concepts value that Clang 18 does not report.
+	# libstdc++ gates std::expected on a __cpp_concepts value that Clang 18 does not report.
 	message(FATAL_ERROR
-		"Klip needs Clang 19 or newer for C++23; found ${CMAKE_CXX_COMPILER_VERSION}. "
+		"Klip needs Clang 19 or newer for C++26; found ${CMAKE_CXX_COMPILER_VERSION}. "
 		"Install a newer clang++ and configure with -DCMAKE_CXX_COMPILER=clang++-<version>.")
 endif()
 
