@@ -115,6 +115,11 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
   an item without it gets an instant menu and no double-click gesture. Right click is unambiguous and
   opens immediately.
 
+- **Locking the screen takes the tray icon away for a second or two, and that is not Klip.** GNOME
+  disables the AppIndicator extension on the lock screen and re-enables it on unlock, when it re-scans the
+  bus by introspection and finds the item again. Seen on GNOME 50 with the sd-bus tray; nothing in Klip
+  needs to re-register.
+
 ## Building
 
 - **A C++ standard CMake does not know sinks `find_package(Qt6)`, not the compile.** `CMAKE_CXX_STANDARD`
