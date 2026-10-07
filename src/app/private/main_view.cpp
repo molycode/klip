@@ -200,6 +200,23 @@ bool DrawRecordButton(bool isRecording, float scale)
 
 	return isPressed;
 }
+
+//////////////////////////////////////////////////////////////////////////
+void DrawMenuBar(SViewIntents& intents)
+{
+	if (ImGui::BeginMenuBar())
+	{
+		if (ImGui::BeginMenu("Klip"))
+		{
+			intents.about = ImGui::MenuItem("About Klip");
+			ImGui::Separator();
+			intents.quit = ImGui::MenuItem("Quit", "Ctrl+Q");
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndMenuBar();
+	}
+}
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
@@ -210,6 +227,9 @@ SViewIntents CMainView::Draw(Recorder::CRecorder& recorder, float scale, bool is
 	Recorder::EState const     state{ recorder.GetState() };
 	bool const                 isIdle{ state == Recorder::EState::Idle };
 	float const                column{ GetLabelColumn() };
+
+	DrawMenuBar(intents);
+	intents.quit = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Q, ImGuiInputFlags_RouteGlobal) || intents.quit;
 
 	ImGui::BeginDisabled(!isIdle);
 	BeginRow("Record", column);

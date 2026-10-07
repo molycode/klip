@@ -10,4 +10,5 @@ void ApplyTheme(float scale);
 
 ImVec4 GetBackgroundColor();
 ImVec4 GetAccentColor();
+ImVec4 GetErrorColor();
 } // namespace Klip

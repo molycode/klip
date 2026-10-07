@@ -1,9 +1,12 @@
 add_executable(Klip
+	private/about_dialog.hpp
+	private/about_dialog.cpp
 	private/activation.hpp
 	private/activation.cpp
 	private/application.hpp
 	private/application.cpp
 	private/embedded_fonts.hpp
+	private/embedded_licences.hpp
 	private/folder_dialog.hpp
 	private/folder_dialog.cpp
 	private/folder_dialog_mailbox.hpp
@@ -15,6 +18,9 @@ add_executable(Klip
 	private/icons.hpp
 	private/level_meter.hpp
 	private/level_meter.cpp
+	private/licensed_component.hpp
+	private/licensed_components.hpp
+	private/licensed_components.cpp
 	private/log.hpp
 	private/log.cpp
 	private/main.cpp
@@ -60,6 +66,18 @@ KlipApplyCompileFlags(Klip)
 
 KlipEmbedFile(Klip RobotoMedium ${PROJECT_SOURCE_DIR}/external/imgui/misc/fonts/Roboto-Medium.ttf)
 KlipEmbedFile(Klip FontAwesomeSolid ${PROJECT_SOURCE_DIR}/assets/fonts/fa-solid-900.ttf)
+KlipEmbedFile(Klip KlipLicence ${PROJECT_SOURCE_DIR}/LICENSE)
+KlipEmbedFile(Klip ImGuiLicence ${PROJECT_SOURCE_DIR}/external/imgui/LICENSE.txt)
+KlipEmbedFile(Klip SdlLicence ${PROJECT_SOURCE_DIR}/external/sdl/LICENSE.txt)
+KlipEmbedFile(Klip SdlBundledLicences ${PROJECT_SOURCE_DIR}/assets/licences/sdl-bundled.txt)
+KlipEmbedFile(Klip SdlWaylandLicences ${PROJECT_SOURCE_DIR}/assets/licences/sdl-wayland-protocols.txt)
+KlipEmbedFile(Klip JsonLicence ${PROJECT_SOURCE_DIR}/external/json/LICENSE.MIT)
+KlipEmbedFile(Klip JsonBundledLicences ${PROJECT_SOURCE_DIR}/assets/licences/json-bundled.txt)
+KlipEmbedFile(Klip FfmpegLicence ${PROJECT_SOURCE_DIR}/assets/licences/ffmpeg.txt)
+KlipEmbedFile(Klip TgeCoreLicence ${PROJECT_SOURCE_DIR}/external/tge-core/LICENSE)
+KlipEmbedFile(Klip RpmallocLicence ${PROJECT_SOURCE_DIR}/external/tge-core/external/rpmalloc/LICENSE)
+KlipEmbedFile(Klip RobotoLicence ${PROJECT_SOURCE_DIR}/assets/fonts/LICENSE-Roboto.txt)
+KlipEmbedFile(Klip FontAwesomeLicence ${PROJECT_SOURCE_DIR}/assets/fonts/LICENSE-FontAwesome.txt)
 
 # Guarded: a parent vendoring Klip is installing its own application, not this one.
 if(PROJECT_IS_TOP_LEVEL)

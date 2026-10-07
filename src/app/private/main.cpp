@@ -117,7 +117,7 @@ void PruneLogs(std::filesystem::path const& logsDir)
 }
 
 // The first Klip of the session, from PipeWire to the end of the event loop.
-int RunKlip()
+int RunKlip(std::filesystem::path const& logsDir)
 {
 	int exitCode{ 1 };
 
@@ -139,7 +139,7 @@ int RunKlip()
 
 	{
 		TGE_PROFILE_SCOPE_N("Startup: window");
-		opened = application.Initialize();
+		opened = application.Initialize(logsDir);
 	}
 
 	if (opened)
@@ -213,7 +213,7 @@ int main(int argc, char** argv)
 		if (connected && Klip::Desktop::gSingleInstance.Claim())
 		{
 			Klip::gLog.Info("Klip {} started", KLIP_VERSION);
-			exitCode = RunKlip();
+			exitCode = RunKlip(hasLogsDir ? logsDir : std::filesystem::path{});
 		}
 		else if (connected)
 		{

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "about_dialog.hpp"
 #include "config/settings_store.hpp"
 #include "desktop/request.hpp"
 #include "main_view.hpp"
@@ -13,6 +14,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <string>
 
 struct SDL_Renderer;
@@ -29,7 +31,7 @@ public:
 	CApplication() = default;
 	~CApplication() = default;
 
-	bool Initialize();
+	bool Initialize(std::filesystem::path const& logsDir);
 	void Terminate();
 
 	void Request(Desktop::SRequest const& request);
@@ -66,6 +68,7 @@ private:
 	Config::CSettingsStore m_settingsStore;
 	Recorder::CRecorder    m_recorder;
 	CMainView              m_mainView;
+	CAboutDialog           m_aboutDialog;
 	CStartFlow             m_startFlow;
 
 	Tge::Threading::CMpscQueue<Desktop::SRequest> m_requests;

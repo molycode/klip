@@ -86,7 +86,7 @@ std::string_view OrNone(char const* pText)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
-bool CApplication::Initialize()
+bool CApplication::Initialize(std::filesystem::path const& logsDir)
 {
 	// The region selector closes while the main window hides, which SDL would take for the last window closing.
 	SetHint(SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, "0");
@@ -112,8 +112,13 @@ bool CApplication::Initialize()
 			gLog.Error("Cannot register the event that wakes the window: {}", SDL_GetError());
 		}
 
-		initialized = m_wakeEventType != 0 && CreateWindowAndRenderer() && InitializeImGui() && InitializeRecorder() &&
-		              ShowMainWindow();
+		initialized = m_wakeEventType != 0 && CreateWindowAndRenderer() && InitializeImGui() && InitializeRecorder();
+
+		if (initialized)
+		{
+			m_aboutDialog.Initialize(m_pWindow, m_settingsStore.GetDirectory().string(), logsDir.string());
+			initialized = ShowMainWindow();
+		}
 	}
 	else
 	{
@@ -205,7 +210,7 @@ void CApplication::Run()
 //////////////////////////////////////////////////////////////////////////
 bool CApplication::CreateWindowAndRenderer()
 {
-	m_pWindow = SDL_CreateWindow("Klip " KLIP_VERSION, static_cast<int>(WindowWidth), static_cast<int>(WindowWidth),
+	m_pWindow = SDL_CreateWindow("Klip", static_cast<int>(WindowWidth), static_cast<int>(WindowWidth),
 	                             SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_HIDDEN);
 
 	if (m_pWindow != nullptr)
@@ -527,7 +532,8 @@ void CApplication::DrawMainFrame(bool present)
 SViewIntents CApplication::DrawMainWindow(float& desiredHeight)
 {
 	constexpr ImGuiWindowFlags Flags{ ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-		                              ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus };
+		                              ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+		                              ImGuiWindowFlags_MenuBar };
 
 	SViewIntents          intents{};
 	ImGuiViewport const* const pViewport{ ImGui::GetMainViewport() };
@@ -546,6 +552,7 @@ SViewIntents CApplication::DrawMainWindow(float& desiredHeight)
 
 		intents = m_mainView.Draw(m_recorder, m_scale, IsFolderDialogPending());
 		desiredHeight = ImGui::GetCursorPosY() - style.ItemSpacing.y + style.WindowPadding.y;
+		m_aboutDialog.Draw();
 	}
 
 	ImGui::End();
@@ -586,6 +593,16 @@ void CApplication::Apply(SViewIntents const& intents)
 	if (intents.open)
 	{
 		OpenInFileManager();
+	}
+
+	if (intents.about)
+	{
+		m_aboutDialog.Open();
+	}
+
+	if (intents.quit)
+	{
+		m_isQuitting = true;
 	}
 }
 

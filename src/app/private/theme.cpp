@@ -17,6 +17,7 @@ constexpr ImVec4 Text{ 0.902f, 0.886f, 0.847f, 1.0f };
 constexpr ImVec4 TextDisabled{ 0.541f, 0.525f, 0.486f, 1.0f };
 constexpr ImVec4 Amber{ 0.851f, 0.604f, 0.169f, 1.0f };
 constexpr ImVec4 AmberBright{ 0.878f, 0.659f, 0.227f, 1.0f };
+constexpr ImVec4 Red{ 0.878f, 0.396f, 0.361f, 1.0f };
 
 //////////////////////////////////////////////////////////////////////////
 constexpr ImVec4 WithAlpha(ImVec4 const& color, float alpha)
@@ -135,5 +136,11 @@ ImVec4 GetBackgroundColor()
 ImVec4 GetAccentColor()
 {
 	return Amber;
+}
+
+//////////////////////////////////////////////////////////////////////////
+ImVec4 GetErrorColor()
+{
+	return Red;
 }
 } // namespace Klip

@@ -22,6 +22,8 @@ public:
 	Recorder::SSettings Load();
 	void Save(Recorder::SSettings const& settings, Recorder::SSettingsChanges const& changes);
 
+	std::filesystem::path GetDirectory() const;
+
 private:
 
 	Recorder::SSettings Import();

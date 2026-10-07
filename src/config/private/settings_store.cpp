@@ -119,6 +119,12 @@ void CSettingsStore::Save(Recorder::SSettings const& settings, Recorder::SSettin
 }
 
 //////////////////////////////////////////////////////////////////////////
+std::filesystem::path CSettingsStore::GetDirectory() const
+{
+	return m_path.parent_path();
+}
+
+//////////////////////////////////////////////////////////////////////////
 // Once: config.json exists from then on, and Klip.conf stays where it is for an older Klip.
 Recorder::SSettings CSettingsStore::Import()
 {
