@@ -136,7 +136,7 @@ private:
 	std::array<std::string, NumAudioSources> m_monitored;
 	std::array<uint64_t, NumAudioSources>    m_numBuffers{};
 
-	// What Klip.conf holds for each device, which is what a refresh looks for while the list is empty.
+	// What the settings file holds for each device, which is what a refresh looks for while the list is empty.
 	std::array<std::string, NumAudioSources> m_writtenDevices;
 
 	std::vector<Encode::EContainer> m_containers;

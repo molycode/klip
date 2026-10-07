@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/settings_store.hpp"
 #include "desktop/request.hpp"
 #include "encode/settings.hpp"
 #include "recorder/audio_source.hpp"
@@ -75,7 +76,7 @@ private:
 	void BuildAudioGroup();
 	void ConnectInputs();
 
-	// Every change goes through here, so the widgets, Klip.conf and the timer follow whatever it did.
+	// Every change goes through here, so the widgets, config.json and the timer follow whatever it did.
 	void Apply(std::function<void()> const& action);
 	void AfterChange();
 	void Sync();
@@ -89,7 +90,8 @@ private:
 
 	SAudioWidgets& GetAudioWidgets(Recorder::EAudioSource source);
 
-	Recorder::CRecorder m_recorder;
+	Config::CSettingsStore m_settingsStore;
+	Recorder::CRecorder    m_recorder;
 
 	Tge::Threading::CMpscQueue<Desktop::SRequest> m_requests;
 

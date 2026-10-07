@@ -16,6 +16,11 @@ add_executable(KlipTests
 	capture/fake_portal.hpp
 	capture/fake_portal.cpp
 	capture/test_portal_session.cpp
+	config/config_test.hpp
+	config/config_test.cpp
+	config/test_klip_conf_import.cpp
+	config/test_settings_store.cpp
+	config/test_xdg_paths.cpp
 	desktop/fake_panel.hpp
 	desktop/fake_panel.cpp
 	desktop/test_single_instance.cpp
@@ -30,6 +35,7 @@ target_include_directories(KlipTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(KlipTests PRIVATE
 	KlipBus
 	KlipCapture
+	KlipConfig
 	KlipDesktop
 	KlipRecorder
 	TgeInit

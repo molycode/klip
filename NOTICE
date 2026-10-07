@@ -34,6 +34,14 @@ Klip requires an FFmpeg built without --enable-gpl: a GPL-configured libavcodec
 would place any distributed Klip binary under the GPL.
 
 --------------------------------------------------------------------------------
+JSON for Modern C++
+--------------------------------------------------------------------------------
+Klip compiles in JSON for Modern C++ (nlohmann/json) under the MIT License.
+
+    Copyright (c) 2013-2025 Niels Lohmann
+    https://github.com/nlohmann/json
+
+--------------------------------------------------------------------------------
 PipeWire and libva
 --------------------------------------------------------------------------------
 Klip uses PipeWire under the MIT License and libva under the MIT License.

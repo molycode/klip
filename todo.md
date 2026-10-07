@@ -121,7 +121,7 @@ replace the seeded table with the user's own content. Store it with the sample c
 line can stop hedging once it is speaking from measurement rather than from a table; an exponential
 average keeps it honest for somebody who switches from filming a desktop to filming games.
 
-That belongs in `$XDG_STATE_HOME/klip`, not in `Klip.conf`. It is derived measurement rather than
+That belongs in `$XDG_STATE_HOME/klip`, not in `config.json`. It is derived measurement rather than
 preference: nobody sets it, deleting it should cost nothing but a recalibration, and it must never sync
 between machines, because the figure folds in the GPU's encoder as well as the content.
 

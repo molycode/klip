@@ -1,0 +1,101 @@
+#include "syntax_error_handler.hpp"
+
+#include <string_view>
+
+namespace Klip::Json
+{
+namespace
+{
+constexpr std::string_view PositionStart{ "line " };
+} // namespace
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::null()
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::boolean(bool)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::number_integer(JsonValue::number_integer_t)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::number_unsigned(JsonValue::number_unsigned_t)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::number_float(JsonValue::number_float_t, JsonValue::string_t const&)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::string(JsonValue::string_t&)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::binary(JsonValue::binary_t&)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::start_object(size_t)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::key(JsonValue::string_t&)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::end_object()
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::start_array(size_t)
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSyntaxErrorHandler::end_array()
+{
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// From the position on: the text before it is nlohmann's exception id.
+bool CSyntaxErrorHandler::parse_error(size_t, std::string const&, JsonValue::exception const& error)
+{
+	std::string_view const what{ error.what() };
+	size_t const start{ what.find(PositionStart) };
+
+	m_error = (start != std::string_view::npos) ? what.substr(start) : what;
+
+	return false;
+}
+
+//////////////////////////////////////////////////////////////////////////
+std::string const& CSyntaxErrorHandler::GetError() const
+{
+	return m_error;
+}
+} // namespace Klip::Json

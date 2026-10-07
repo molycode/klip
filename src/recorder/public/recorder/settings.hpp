@@ -29,5 +29,7 @@ struct SSettings final
 	// The portal's grants, kept so the picker does not ask again.
 	std::string screenToken;
 	std::string windowToken;
+
+	bool operator==(SSettings const&) const = default;
 };
 } // namespace Klip::Recorder

@@ -12,5 +12,7 @@ struct SAudioChoice final
 	bool        enabled{ false };
 	std::string device;
 	int         gainDecibels{ 0 };
+
+	bool operator==(SAudioChoice const&) const = default;
 };
 } // namespace Klip::Recorder

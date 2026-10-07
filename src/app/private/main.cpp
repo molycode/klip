@@ -101,7 +101,6 @@ int main(int argc, char** argv)
 
 	QApplication app(argc, argv);
 	QApplication::setStyle(QStringLiteral("Fusion"));
-	QApplication::setOrganizationName(QStringLiteral("klip"));
 	QApplication::setApplicationName(QStringLiteral("Klip"));
 	QApplication::setDesktopFileName(QStringLiteral("klip"));
 

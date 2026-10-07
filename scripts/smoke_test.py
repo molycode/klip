@@ -28,10 +28,9 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 REPO = Path(__file__).resolve().parent.parent
-CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "klip" / "Klip.conf"
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "klip" / "config.json"
 
-DIRECTORY_SECTION = "output"
-DIRECTORY_KEY = "directory"
+DIRECTORY_SETTING = "output.directory"
 
 CONTENT_WIDTH = 160
 CONTENT_HEIGHT = 90
@@ -59,73 +58,44 @@ def find_tool(name, explicit, variable):
 	return Path(found) if found else None
 
 
-def read_conf_value(text, section, key, fallback):
-	value = fallback
-	current = None
+def read_setting(settings, dotted, fallback):
+	value = settings
 
-	for line in text.splitlines():
-		stripped = line.strip()
+	for key in dotted.split("."):
+		if not isinstance(value, dict) or key not in value:
+			return fallback
 
-		if stripped.startswith("[") and stripped.endswith("]"):
-			current = stripped[1:-1]
-		elif current == section and stripped.startswith(key + "="):
-			value = stripped[len(key) + 1:]
+		value = value[key]
 
 	return value
 
 
-def write_conf_value(path, section, key, value):
-	"""Sets one key in place and answers what was there before, or None when the key was absent."""
-	previous = None
-	current = None
-	written = False
-	out = []
+def write_setting(path, dotted, value):
+	"""Sets one setting in place and answers what was there before, or None when it was absent."""
+	settings = json.loads(path.read_text())
+	*parents, key = dotted.split(".")
+	section = settings
 
-	for line in path.read_text().splitlines():
-		stripped = line.strip()
+	for parent in parents:
+		section = section.setdefault(parent, {})
 
-		if stripped.startswith("[") and stripped.endswith("]"):
-			if current == section and not written:
-				out.append(f"{key}={value}")
-				written = True
-
-			current = stripped[1:-1]
-
-		if current == section and stripped.startswith(key + "="):
-			previous = stripped[len(key) + 1:]
-
-			if not written:
-				out.append(f"{key}={value}")
-				written = True
-
-			continue
-
-		out.append(line)
-
-	if not written and current == section:
-		out.append(f"{key}={value}")
-	elif not written:
-		out += ["", f"[{section}]", f"{key}={value}"]
-
-	path.write_text("\n".join(out) + "\n")
+	previous = section.get(key)
+	section[key] = value
+	path.write_text(json.dumps(settings, indent="\t", ensure_ascii=False) + "\n")
 
 	return previous
 
 
-def remove_conf_key(path, section, key):
-	current = None
-	out = []
+def remove_setting(path, dotted):
+	settings = json.loads(path.read_text())
+	*parents, key = dotted.split(".")
+	section = settings
 
-	for line in path.read_text().splitlines():
-		stripped = line.strip()
+	for parent in parents:
+		section = section.get(parent, {})
 
-		if stripped.startswith("[") and stripped.endswith("]"):
-			current = stripped[1:-1]
-
-		if not (current == section and stripped.startswith(key + "=")):
-			out.append(line)
-
-	path.write_text("\n".join(out) + "\n")
+	section.pop(key, None)
+	path.write_text(json.dumps(settings, indent="\t", ensure_ascii=False) + "\n")
 
 
 def toggle_via_tray(pid):
@@ -527,30 +497,30 @@ def run(args):
 		return 1
 
 	ffmpeg = find_tool("ffmpeg", args.ffmpeg, "KLIP_FFMPEG")
-	conf = CONF.read_text()
-	codec = read_conf_value(conf, "output", "codec", "h264")
-	container = read_conf_value(conf, "output", "container", "mp4")
+	settings = json.loads(CONF.read_text())
+	codec = read_setting(settings, "output.codec", "h264")
+	container = read_setting(settings, "output.container", "mp4")
 
 	# What the settings ask for is what the file is held to: silence is only a pass when none was asked.
-	wants_audio = (read_conf_value(conf, "audio", "systemEnabled", "false") == "true" or
-	               read_conf_value(conf, "audio", "microphoneEnabled", "false") == "true")
-	source = read_conf_value(conf, "capture", "source", "0")
+	wants_audio = (read_setting(settings, "audio.system.enabled", False) is True or
+	               read_setting(settings, "audio.microphone.enabled", False) is True)
+	source = read_setting(settings, "capture.source", "screen")
 
-	# A window is drivable only once its grant has been kept: without capture/rememberWindow the portal
+	# A window is drivable only once its grant has been kept: without capture.rememberWindow the portal
 	# raises a picker no automation can answer. A region always needs a human to drag one.
-	remembers = read_conf_value(conf, "capture", "rememberWindow", "false") == "true"
+	remembers = read_setting(settings, "capture.rememberWindow", False) is True
 
-	if source not in ("0", "1") or (source == "1" and not remembers):
-		print(f"capture/source is {source}: the smoke test can drive the screen, and a window only with "
-		      "capture/rememberWindow set after one manual pick", file=sys.stderr)
+	if source not in ("screen", "window") or (source == "window" and not remembers):
+		print(f"capture.source is {source}: the smoke test can drive the screen, and a window only with "
+		      "capture.rememberWindow set after one manual pick", file=sys.stderr)
 
 		return 1
 
 	directory = Path(tempfile.mkdtemp(prefix="klip-smoke-"))
 	logs_before = set(REPO.glob("logs/klip_*.log"))
-	previous = write_conf_value(CONF, DIRECTORY_SECTION, DIRECTORY_KEY, str(directory))
+	previous = write_setting(CONF, DIRECTORY_SETTING, str(directory))
 
-	print(f"recording {'the whole screen' if source == '0' else 'the remembered window'} for "
+	print(f"recording {'the whole screen' if source == 'screen' else 'the remembered window'} for "
 	      f"{args.seconds}s as {codec} in {container}{' with sound' if wants_audio else ''}")
 
 	process = None
@@ -583,7 +553,7 @@ def run(args):
 		appeared = time.monotonic()
 		time.sleep(args.seconds / 2)
 
-		if source == "0":
+		if source == "screen":
 			asked = time.monotonic()
 			shot, why_not = take_screenshot(directory)
 			reference = (shot, (asked + time.monotonic()) / 2 - appeared, why_not)
@@ -620,9 +590,9 @@ def run(args):
 
 		# Klip rewrites this file as it runs, so the restore edits what is there now, not a snapshot.
 		if previous is None:
-			remove_conf_key(CONF, DIRECTORY_SECTION, DIRECTORY_KEY)
+			remove_setting(CONF, DIRECTORY_SETTING)
 		else:
-			write_conf_value(CONF, DIRECTORY_SECTION, DIRECTORY_KEY, previous)
+			write_setting(CONF, DIRECTORY_SETTING, previous)
 
 	logs_after = set(REPO.glob("logs/klip_*.log")) - logs_before
 	claimed = read_klip_log(max(logs_after, key=lambda path: path.stat().st_mtime)) if logs_after else {}

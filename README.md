@@ -87,6 +87,7 @@ X11 path and none is needed.
 ## Dependencies
 
 - **tge-core** — logging, memory, threading, IO. A git submodule; nothing to install.
+- **nlohmann/json** — the settings file. A git submodule, header only; nothing to install.
 - **Qt 6.4+** — Widgets, for the window. Used under LGPLv3 and linked dynamically.
 - **FFmpeg 6.1+** (avcodec, avfilter, avformat, avutil, swscale) and **libva** — encoding
 - **PipeWire 1.0+** and **libdrm** — the capture stream
@@ -168,6 +169,8 @@ It films the whole desktop, needs a screen cast grant the first time it runs, an
 ```
 src/app/            the executable and its UI
 src/recorder/       what the UI shows and does, without the UI: settings, meters, the recording session
+src/config/         the settings file, config.json, and the one-time import of the old Klip.conf
+src/json/           reading and writing JSON files, over nlohmann/json
 src/bus/            the session bus connection, on a thread of its own
 src/desktop/        the tray and single instance, served on that bus
 src/capture/        the portal session and the PipeWire streams
@@ -175,6 +178,7 @@ src/encode/         the VAAPI encoder and the muxer
 tests/              the test suite (KLIP_BUILD_TESTS), each run on a private session bus
 cmake/              toolchains, per-compiler flags, sanitizers, platform defines
 external/tge-core   the foundation library (submodule)
+external/json       nlohmann/json (submodule)
 external/googletest the test framework (submodule, only built with the tests)
 scripts/            the FFmpeg build helper, the floor build, the smoke test, the sanitizer triage tools
 docs/               the screenshot, what measurement taught, and how the checks are run
