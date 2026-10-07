@@ -132,8 +132,8 @@ branches, everything a given machine's hardware never reaches.
 scripts/floor_build.sh
 ```
 
-`CMakeLists.txt` refuses GCC below 13 and Clang below 18, and a floor is only real once something has been
-built at it. The floor is Ubuntu 24.04 as a whole -- CMake 3.28, GCC 13, Clang 18, Qt 6.4.2 and FFmpeg
+`CMakeLists.txt` refuses GCC below 13 and Clang below 19, and a floor is only real once something has been
+built at it. The floor is Ubuntu 24.04 as a whole -- CMake 3.28, GCC 13, Clang 19, Qt 6.4.2 and FFmpeg
 6.1.1 -- so the script builds inside an `ubuntu:24.04` container rather than trusting whatever the host
 has moved on to. It installs exactly the README's `apt install` line, so a dependency missing from that
 line fails here and not on a reader's machine; then it runs `make` as the README says, and builds Debug and

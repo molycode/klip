@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Klip at its declared floor: Ubuntu 24.04's CMake, GCC 13, Clang 18, Qt and FFmpeg, inside a container,
+# Builds Klip at its declared floor: Ubuntu 24.04's CMake, GCC 13, Clang 19, Qt and FFmpeg, inside a container,
 # from a copy of this tree without CMakeUserPresets.json, and runs the test suite in the Debug builds. The
 # packages are read from the README's apt line, so a dependency missing from it fails here rather than on a
 # reader's machine.
@@ -17,7 +17,7 @@ fi
 
 docker build --quiet --tag "$image" - > /dev/null <<EOF
 FROM ubuntu:24.04
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y $packages clang-18 dbus-daemon \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y $packages clang-19 dbus-daemon \
 	&& rm -rf /var/lib/apt/lists/*
 EOF
 
@@ -25,7 +25,7 @@ tar -C "$root" --exclude=./build --exclude=./.git --exclude=./CMakeUserPresets.j
 	docker run --rm -i "$image" bash -c '
 		set -uo pipefail
 		mkdir /src && tar -C /src -xf -
-		echo "cmake $(cmake --version | head -1 | cut -d" " -f3), $(g++ --version | head -1), $(clang++-18 --version | head -1)"
+		echo "cmake $(cmake --version | head -1 | cut -d" " -f3), $(g++ --version | head -1), $(clang++-19 --version | head -1)"
 
 		failed=0
 
@@ -62,8 +62,8 @@ tar -C "$root" --exclude=./build --exclude=./.git --exclude=./CMakeUserPresets.j
 		for type in Debug Release; do
 			build "gcc13-$type" -DCMAKE_TOOLCHAIN_FILE=/src/cmake/toolchains/linux/gcc.cmake \
 				-DCMAKE_BUILD_TYPE=$type -DKLIP_BUILD_TESTS=$([ $type = Debug ] && echo ON || echo OFF)
-			build "clang18-$type" -DCMAKE_TOOLCHAIN_FILE=/src/cmake/toolchains/linux/clang.cmake \
-				-DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=$type \
+			build "clang19-$type" -DCMAKE_TOOLCHAIN_FILE=/src/cmake/toolchains/linux/clang.cmake \
+				-DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_BUILD_TYPE=$type \
 				-DKLIP_BUILD_TESTS=$([ $type = Debug ] && echo ON || echo OFF)
 		done
 

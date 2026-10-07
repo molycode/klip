@@ -18,9 +18,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_L
 	message(FATAL_ERROR
 		"Klip needs GCC 13 or newer for C++23; found ${CMAKE_CXX_COMPILER_VERSION}. "
 		"Install a newer g++ and configure with -DCMAKE_CXX_COMPILER=g++-<version>.")
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 18)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19)
+	# libstdc++ 13 gates std::expected on a __cpp_concepts value that Clang 18 does not report.
 	message(FATAL_ERROR
-		"Klip needs Clang 18 or newer for C++23; found ${CMAKE_CXX_COMPILER_VERSION}.")
+		"Klip needs Clang 19 or newer for C++23; found ${CMAKE_CXX_COMPILER_VERSION}. "
+		"Install a newer clang++ and configure with -DCMAKE_CXX_COMPILER=clang++-<version>.")
 endif()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform.cmake)

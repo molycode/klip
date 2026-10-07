@@ -71,8 +71,9 @@ of a quiet desktop can come in at half that or less.
 
 ## Requirements
 
-- C++23 compiler — GCC 13+ or Clang 18+. GCC 16 and Clang 23 are the toolchains Klip is developed on;
-  the floor is built and checked at GCC 13 and Clang 18 rather than merely declared.
+- C++23 compiler — GCC 13+ or Clang 19+. GCC 16 and Clang 23 are the toolchains Klip is developed on;
+  the floor is built and checked at GCC 13 and Clang 19 rather than merely declared. Ubuntu 24.04's default
+  `clang` is 18, which cannot use its `std::expected`; install `clang-19` there.
 - CMake 3.28+
 - Ninja — every preset names it as the generator
 - A desktop running `xdg-desktop-portal` with a ScreenCast backend, and PipeWire 1.0+
