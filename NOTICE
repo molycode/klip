@@ -21,6 +21,15 @@ Klip requires an FFmpeg built without --enable-gpl: a GPL-configured libavcodec
 would place any distributed Klip binary under the GPL.
 
 --------------------------------------------------------------------------------
+libsystemd
+--------------------------------------------------------------------------------
+Klip uses libsystemd's sd-bus under the GNU Lesser General Public License
+version 2.1 or later. It is linked dynamically and is not modified or
+redistributed with Klip.
+
+    https://systemd.io/
+
+--------------------------------------------------------------------------------
 SDL 3
 --------------------------------------------------------------------------------
 Klip compiles in SDL 3 (Simple DirectMedia Layer) under the zlib License.
@@ -58,10 +67,24 @@ Klip compiles in JSON for Modern C++ (nlohmann/json) under the MIT License.
     Copyright (c) 2013-2025 Niels Lohmann
     https://github.com/nlohmann/json
 
+JSON for Modern C++ contains code under licences of its own. Their notices are
+in assets/licences/json-bundled.txt.
+
 --------------------------------------------------------------------------------
-PipeWire and libva
+tge-core and rpmalloc
 --------------------------------------------------------------------------------
-Klip uses PipeWire under the MIT License and libva under the MIT License.
+Klip compiles in tge-core under the MIT License, and the rpmalloc allocator that
+tge-core carries under the Zero-Clause BSD License.
+
+    Copyright (c) 2026 moly
+    https://github.com/molycode/tge-core
+    https://github.com/mjansson/rpmalloc
+
+--------------------------------------------------------------------------------
+PipeWire, libva and libdrm
+--------------------------------------------------------------------------------
+Klip uses PipeWire, libva and libdrm, each under the MIT License.
 
     https://pipewire.org/
     https://github.com/intel/libva
+    https://gitlab.freedesktop.org/mesa/drm
