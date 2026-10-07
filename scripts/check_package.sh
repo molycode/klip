@@ -17,12 +17,12 @@ APT_RUNTIME="libpipewire-0.3-0 libva2 libva-drm2 libdrm2 libsystemd0"
 DNF_RUNTIME="pipewire-libs libva libdrm systemd-libs"
 PACMAN_RUNTIME="libpipewire libva libdrm systemd-libs"
 
-# Xvfb, Mesa, the X libraries SDL loads by soname, a session bus to own Klip's name on, and Python with GLib for the
-# stand-in portal.
+# Xvfb, Mesa, the X libraries SDL loads by soname, and a session bus to own Klip's name on. No portal: without one
+# Klip must still open its window, to say what is missing.
 APT_GUI="xvfb libgl1 libgl1-mesa-dri libegl1 libx11-6 libxext6 libxcursor1 libxi6 libxfixes3 libxrandr2 libxrender1 \
-libxkbcommon0 dbus-daemon python3-gi"
+libxkbcommon0 dbus-daemon"
 DNF_GUI="xorg-x11-server-Xvfb mesa-dri-drivers mesa-libGL mesa-libEGL libX11 libXext libXcursor libXi libXfixes libXrandr \
-libXrender libxkbcommon dbus-daemon python3-gobject"
+libXrender libxkbcommon dbus-daemon"
 
 apt_setup()    { echo "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $*"; }
 dnf_setup()    { echo "dnf -y install $*"; }
@@ -90,34 +90,6 @@ done
 echo "PASS $version installs, resolves every library and symbol, uninstalls cleanly with either uninstaller"
 EOF
 
-# Klip refuses to start without a ScreenCast portal, and a container has none: this answers the three properties
-# Klip reads before it opens its window, and nothing else.
-cat > "$WORK/checks/portal.py" <<'EOF'
-from gi.repository import Gio, GLib
-
-INTERFACE = """<node><interface name="org.freedesktop.portal.ScreenCast">
-<property name="version" type="u" access="read"/>
-<property name="AvailableSourceTypes" type="u" access="read"/>
-<property name="AvailableCursorModes" type="u" access="read"/>
-</interface></node>"""
-VALUES = {"version": 5, "AvailableSourceTypes": 7, "AvailableCursorModes": 7}
-
-
-def on_bus(connection, name):
-	info = Gio.DBusNodeInfo.new_for_xml(INTERFACE).interfaces[0]
-	connection.register_object("/org/freedesktop/portal/desktop", info, None,
-	                           lambda *args: GLib.Variant("u", VALUES[args[-1]]), None)
-
-
-def on_name(connection, name):
-	print("ready", flush=True)
-
-
-Gio.bus_own_name(Gio.BusType.SESSION, "org.freedesktop.portal.Desktop", Gio.BusNameOwnerFlags.NONE, on_bus, on_name,
-                 None)
-GLib.MainLoop().run()
-EOF
-
 cat > "$WORK/checks/gui.sh" <<'EOF'
 set -u
 fail() { echo "FAIL $1"; [ -f /tmp/out ] && tail -n 8 /tmp/out; exit 1; }
@@ -131,24 +103,14 @@ while [ ! -S /tmp/.X11-unix/X99 ] && [ "$waited" -lt 40 ]; do
 	waited=$((waited + 1))
 done
 [ -S /tmp/.X11-unix/X99 ] || { cp /tmp/xvfb.out /tmp/out; fail "Xvfb did not start within 10 s"; }
-cat > /tmp/session.sh <<'SESSION'
-python3 /checks/portal.py > /tmp/portal.out 2>&1 &
-waited=0
-while ! grep -q ready /tmp/portal.out && [ "$waited" -lt 40 ]; do
-	sleep 0.25
-	waited=$((waited + 1))
-done
-grep -q ready /tmp/portal.out || { cat /tmp/portal.out; exit 2; }
-DISPLAY=:99 timeout -k 5 5 "$HOME/.local/bin/klip"
-SESSION
 status=0
-dbus-run-session -- sh /tmp/session.sh > /tmp/out 2>&1 || status=$?
+DISPLAY=:99 dbus-run-session -- timeout -k 5 5 "$HOME/.local/bin/klip" > /tmp/out 2>&1 || status=$?
 [ "$status" -eq 124 ] || fail "klip ended with status $status instead of running until the 5 s timeout"
 log=$(ls -t "$HOME"/.local/state/klip/logs/klip_*.log 2>/dev/null | head -n 1)
 [ -n "$log" ] || fail "klip wrote no log"
 cp "$log" /tmp/out
 display=$(grep -o "video driver 'x11', renderer '[^']*'" "$log") || fail "the log names no x11 video driver and renderer"
-echo "PASS window starts under Xvfb: $display"
+echo "PASS window starts under Xvfb with no portal: $display"
 EOF
 
 # Prints the check's one-line outcome and returns whether it passed.
