@@ -20,6 +20,10 @@ if(NOT KLIP_SANITIZER STREQUAL "none")
 	add_compile_options(-fsanitize=${KLIP_SANITIZER} -fno-omit-frame-pointer)
 	add_link_options(-fsanitize=${KLIP_SANITIZER})
 
+	# tge-core's asserts, so its loop-thread checks fire in the builds that watch threads. A normal variable,
+	# which tge-core honours as a parent's choice and passes on to everything through TgeBase.
+	set(TGE_DEBUG_ENABLED ON)
+
 	# rpmalloc serves new and delete from pages it takes straight from mmap, so ASan never sees the
 	# allocation and TSan never sees the synchronisation. Forced rather than defaulted because leaving
 	# it on does not fail the build, it just makes the run quietly useless.
