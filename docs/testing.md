@@ -28,7 +28,10 @@ skipped for a window source and for a screenshot spanning more than one monitor.
 
 `--quit` ends through the tray menu rather than `SIGTERM`. Without it no exit path runs at all, every
 `Terminate` is skipped and a leak checker reports nothing, so pass it whenever the run is being watched by
-a tool.
+a tool. It also gates the exit status: a crash, a non-zero exit, or a Quit still running 30 seconds later
+fails the run. Klip's console output lands in `console.log` beside the recording, kept with it whenever a
+gate fails. A sanitizer's own exit code would fail that gate on third-party leaks alone, so run them with
+`exitcode=0` and let the triage scripts decide.
 
 Two sources cannot be driven unattended. A **window** needs the grant kept -- tick *Remember the window*,
 pick once by hand, and later runs restore it. A **region** needs a drag, and AT-SPI injects through XTEST,

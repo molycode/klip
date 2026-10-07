@@ -198,6 +198,23 @@ def quit_via_tray(pid):
 	return call.returncode == 0
 
 
+def end_through_quit(process):
+	"""Returns whether Klip ended cleanly through Quit, and how it ended; one still running afterwards is
+	left for the caller's SIGTERM."""
+	if process.poll() is not None:
+		ending = (False, f"exited {process.returncode} before Quit was sent")
+	elif not quit_via_tray(process.pid):
+		ending = (False, "Quit was not accepted, so ended with SIGTERM")
+	else:
+		try:
+			process.wait(timeout=30)
+			ending = (process.returncode == 0, f"exited {process.returncode} through Quit")
+		except subprocess.TimeoutExpired:
+			ending = (False, "still running 30s after Quit, so ended with SIGTERM")
+
+	return ending
+
+
 def wait_for_recording(directory, timeout):
 	deadline = time.monotonic() + timeout
 
@@ -548,10 +565,16 @@ def run(args):
 	process = None
 	recording = None
 
+	# A sanitizer or a crash writes here, and an exit status says nothing without the words behind it.
+	output_path = directory / "console.log"
+	output = open(output_path, "wb")
+	reached_gates = False
+	ending = None
+
 	try:
 		process = subprocess.Popen([str(klip)], cwd=REPO,
 		                           env={**os.environ, "QT_LINUX_ACCESSIBILITY_ALWAYS_ON": "1"},
-		                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		                           stdout=output, stderr=subprocess.STDOUT)
 
 		if not press_record(process, args.start_timeout):
 			if process.poll() is not None:
@@ -590,17 +613,21 @@ def run(args):
 			print("the file never stopped growing", file=sys.stderr)
 
 			return 1
+
+		reached_gates = True
 	finally:
 		if process is not None:
-			if args.quit and process.poll() is None and quit_via_tray(process.pid):
-				try:
-					process.wait(timeout=30)
-				except subprocess.TimeoutExpired:
-					pass
+			if args.quit:
+				ending = end_through_quit(process)
 
 			if process.poll() is None:
 				process.send_signal(signal.SIGTERM)
 				process.wait(timeout=10)
+
+		output.close()
+
+		if not reached_gates:
+			print(f"Klip's output is in {output_path}", file=sys.stderr)
 
 		# Klip rewrites this file as it runs, so the restore edits what is there now, not a snapshot.
 		if previous is None:
@@ -624,6 +651,10 @@ def run(args):
 		print(f"ffprobe found no video stream in {recording}", file=sys.stderr)
 
 		return 1
+
+	# Only a run ended through Quit has an exit status worth gating: SIGTERM is how every other run ends.
+	if args.quit:
+		gates.append(("exit", *ending))
 
 	for name, passed, detail in gates:
 		mark = "SKIP" if passed is None else ("PASS" if passed else "FAIL")
@@ -653,7 +684,8 @@ def main():
 	parser.add_argument("--ffmpeg",
 	                    help="ffmpeg for the decode and content checks (default: $KLIP_FFMPEG, then PATH)")
 	parser.add_argument("--quit", action="store_true",
-	                    help="end through the tray's Quit rather than SIGTERM, so the exit path runs")
+	                    help="end through the tray's Quit rather than SIGTERM, so the exit path runs and "
+	                         "its exit status is gated")
 	parser.add_argument("--keep", action="store_true", help="keep the recording even when it passes")
 
 	return run(parser.parse_args())
