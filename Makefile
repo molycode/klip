@@ -8,8 +8,8 @@
 #   make debug           build with assertions and no optimisation
 #   make clean           remove this build type's directory
 #
-# Filing a bug? Build with BUILD_TYPE=RelWithDebInfo: Release compiles logging out and carries no
-# symbols, so a crash there gives an address and nothing to read beside it.
+# Filing a crash? Build with BUILD_TYPE=RelWithDebInfo: Release carries no symbols, so a crash there
+# gives an address and nothing to read beside it.
 
 PREFIX     ?= /usr/local
 BUILD_TYPE ?= Release

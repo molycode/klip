@@ -134,10 +134,10 @@ in are left alone because they belong to the system rather than to Klip. Underne
 
 If you cloned without `--recurse-submodules`, `git submodule update --init --recursive` puts that right.
 
-**Reporting a bug? Build `make BUILD_TYPE=RelWithDebInfo` instead.** Release compiles logging out and
-carries no symbols, so a crash there gives an address and nothing to read beside it. RelWithDebInfo is
-optimised and keeps both, and writes a log to `~/.local/state/klip/logs` (`$XDG_STATE_HOME/klip/logs` when
-that is set), keeping the newest ten. Send that, and the output of `klip --version`.
+**Reporting a bug?** Every build writes a log to `~/.local/state/klip/logs` (`$XDG_STATE_HOME/klip/logs`
+when that is set) and keeps the newest ten. Send the one from the session that went wrong, and the output
+of `klip --version`. For a crash, build `make BUILD_TYPE=RelWithDebInfo` instead: Release carries no
+symbols, so a crash there gives an address and nothing to read beside it.
 
 ### Working on Klip
 

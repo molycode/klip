@@ -598,8 +598,7 @@ def run(args):
 	logs_after = set(LOGS.glob("klip_*.log")) - logs_before
 	claimed = read_klip_log(max(logs_after, key=lambda path: path.stat().st_mtime)) if logs_after else {}
 	if not claimed:
-		print("that binary wrote no log, so there is nothing to gate its own claims against: Release "
-		      "builds compile logging out. Gate a debug or relwithdebinfo build instead.",
+		print(f"that binary wrote no log in {LOGS}, so there is nothing to gate its own claims against",
 		      file=sys.stderr)
 
 		return 1

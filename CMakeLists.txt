@@ -43,14 +43,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/sanitizer.cmake)
 # Generator expressions rather than a CMAKE_BUILD_TYPE test, so these survive a multi-config generator.
 add_compile_definitions($<$<CONFIG:Debug>:KLIP_DEBUG>)
 add_compile_definitions($<$<CONFIG:Debug>:TGE_DEBUG_ENABLED>)
-# tge-core wraps every log call in this, std::format included, so a Release build pays nothing for the
-# ones it does not make. Decided at configure time because tge-core reads it as an option, which is why
-# this one is not a generator expression like its neighbours.
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-	set(TGE_ENABLE_LOGGING OFF)
-else()
-	add_compile_definitions(TGE_LOGGING_ENABLED)
-endif()
+add_compile_definitions(TGE_LOGGING_ENABLED)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_ffmpeg.cmake)
 
