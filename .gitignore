@@ -22,7 +22,7 @@ dist/
 *.so
 *.so.*
 
-# The logger writes relative to the working directory, so running a binary from the repo root lands here
+# Logs from before Klip wrote them to ~/.local/state, and tge-core's logging.cfg, read from the working directory
 logs/
 configs/
 *.log
