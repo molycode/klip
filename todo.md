@@ -147,16 +147,17 @@ the wrong area with no warning.
 **What would settle it:** scaling the rectangle by stream size over screen geometry once the stream is
 running, which needs the selector's result to survive until after the portal answers.
 
-## tge-core's CLog does real work in a constructor, and Klip has three of them
+## tge-core's CLog does real work in a constructor, and Klip has four of them
 
 `CLog::CLog` registers with the log system, takes a mutex and inserts into a map, so an application-lifetime
 global like `Klip::gLog` allocates during static initialisation, where a failure cannot be caught. clang-tidy
-reports it as `bugprone-throwing-static-initialization` on two of them, and it is right: tge-core's own rule
+reports it as `bugprone-throwing-static-initialization` on the app's, and it is right: tge-core's own rule
 is that a constructor default-initialises members and nothing else, precisely so that globals are safe.
 
-It is two rather than three because `KlipEncode` links no Qt, so it never re-enables exceptions and keeps
-the global `-fno-exceptions`, under which the constructor cannot throw at all. The check is silent there on
-a build flag, not on a difference in the code -- all three loggers are the same declaration.
+It is one rather than four because only the app still links Qt and re-enables exceptions; the bus, capture
+and encode libraries keep the global `-fno-exceptions`, under which the constructor cannot throw at all.
+The check is silent there on a build flag, not on a difference in the code -- all four loggers are the same
+declaration, and capture's dropped out of the report the moment it stopped linking Qt.
 
 The static initialisation *order* is fine -- `GetLogSystem()` is a function-local static, constructed on
 first use -- and the practical risk is small, since a failed allocation that early ends the process anyway.

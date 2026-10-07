@@ -2,12 +2,13 @@
 
 #include <tge/non_copyable.hpp>
 
-#include <QtCore/QObject>
-#include <QtCore/QString>
-#include <QtCore/QVariantMap>
-
 #include <cstdint>
 #include <functional>
+#include <string>
+
+struct sd_bus;
+struct sd_bus_message;
+struct sd_bus_slot;
 
 namespace Klip::Capture
 {
@@ -33,57 +34,82 @@ enum class EPortalResult : uint8_t
 	Failed
 };
 
-class CPortalSession final : public QObject, private Tge::SNoCopyNoMove
+struct SPortalGrant final
 {
-	Q_OBJECT
+	EPortalResult result{ EPortalResult::Failed };
+	SStreamInfo   stream;
 
+	// On success the receiver owns it and must close it.
+	int pipeWireFd{ -1 };
+
+	// A token is spent by the request that carries it, so this replaces it even when the recording then
+	// fails to start.
+	std::string restoreToken;
+};
+
+// A screen is the same screen next time, so its grant is always worth keeping. Which window someone wants
+// is a fresh question unless they say otherwise.
+bool KeepsGrant(ESourceType source, bool rememberWindow);
+
+// Runs on Bus::gConnection's thread, where its callbacks fire too.
+class CPortalSession final : private Tge::SNoCopyNoMove
+{
 public:
 
-	// On success the callee owns the descriptor and must close it.
-	using ResultCallback = std::function<void(EPortalResult, SStreamInfo const&, int)>;
+	using ResultCallback = std::function<void(SPortalGrant const&)>;
 
 	using ClosedCallback = std::function<void()>;
 
-	explicit CPortalSession(QObject* pParent = nullptr);
-	~CPortalSession() override = default;
+	CPortalSession() = default;
+	~CPortalSession() = default;
 
-	bool Initialize();
+	bool Initialize(ClosedCallback onClosed);
+
+	// No callback fires once this returns.
 	void Terminate();
 
 	// Idempotent; a later Start opens a fresh session.
 	void Close();
 
-	void SetClosedCallback(ClosedCallback callback) { m_onClosed = std::move(callback); }
-
-	void Start(ESourceType source, bool rememberWindow, ResultCallback callback);
-
-private Q_SLOTS:
-
-	// uint, not uint32_t: QDBusConnection matches on the signature as written.
-	void OnCreateSessionResponse(uint response, QVariantMap const& results);
-	void OnSelectSourcesResponse(uint response, QVariantMap const& results);
-	void OnStartResponse(uint response, QVariantMap const& results);
-	void OnSessionClosed();
+	void Start(ESourceType source, bool rememberWindow, std::string restoreToken, ResultCallback callback);
 
 private:
 
-	QString MakeToken();
+	enum class EStep : uint8_t
+	{
+		None,
+		CreateSession,
+		SelectSources,
+		Start
+	};
 
+	void Probe(sd_bus* pBus);
+	void Begin(sd_bus* pBus, ResultCallback callback);
 
 	// Subscribes before the call goes out; the portal can answer first.
-	QString PrepareRequest(QString const& token, char const* pSlot);
+	bool Request(sd_bus* pBus, EStep step, char const* pMember,
+	             std::function<int(sd_bus_message*, std::string const& token)> const& fill);
 
-	void Finish(EPortalResult result, SStreamInfo const& info, int pipeWireFd);
+	void OnResponse(sd_bus_message* pMessage);
+	void OnSessionCreated(sd_bus* pBus, sd_bus_message* pResults);
+	void OnSourcesSelected(sd_bus* pBus);
+	void OnStarted(sd_bus* pBus, sd_bus_message* pResults);
+	void OnSessionClosed();
+
+	void OpenRemote(sd_bus* pBus, SPortalGrant grant);
+	void CloseSession(sd_bus* pBus);
+	void Finish(sd_bus* pBus, SPortalGrant const& grant);
 
 	ResultCallback m_callback;
 	ClosedCallback m_onClosed;
-	QString        m_requestPath;
-	QString        m_sessionHandle;
-	QString        m_restoreToken;
+	std::string    m_sessionHandle;
+	std::string    m_restoreToken;
+	sd_bus_slot*   m_pResponseSlot{ nullptr };
+	sd_bus_slot*   m_pClosedSlot{ nullptr };
+	EStep          m_step{ EStep::None };
 	ESourceType    m_source{ ESourceType::Screen };
 	uint32_t       m_availableSourceTypes{ 0 };
 	uint32_t       m_availableCursorModes{ 0 };
-	uint32_t       m_tokenCounter{ 0 };
 	bool           m_rememberWindow{ false };
 	bool           m_initialized{ false };
 	bool           m_busy{ false };

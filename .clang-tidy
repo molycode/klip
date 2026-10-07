@@ -16,7 +16,6 @@ Checks: >
   -misc-include-cleaner,
   -misc-unused-parameters,
   -misc-const-correctness,
-  -misc-use-internal-linkage,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes
 
@@ -34,5 +33,3 @@ HeaderFilterRegex: 'src/(app|bus|capture|encode)/'
 # misc-include-cleaner: 448 findings, and it disagrees with the include rules this project follows.
 # misc-unused-parameters: callback and override signatures are mandated by the interface they implement.
 # misc-const-correctness: cannot see Qt's non-const API through a pointer, nor a later move.
-# misc-use-internal-linkage: SPortalStream is named by Q_DECLARE_METATYPE, and its streaming operators
-#   have to sit beside it for argument-dependent lookup to find them.

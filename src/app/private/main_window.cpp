@@ -83,6 +83,8 @@ constexpr char const* MicrophoneDeviceKey{ "audio/microphoneDevice" };
 constexpr char const* AudioQualityKey{ "audio/quality" };
 constexpr char const* SystemGainKey{ "audio/systemGain" };
 constexpr char const* MicrophoneGainKey{ "audio/microphoneGain" };
+constexpr char const* ScreenTokenKey{ "portal/restoreToken/screen" };
+constexpr char const* WindowTokenKey{ "portal/restoreToken/window" };
 
 constexpr int MinimumGainDecibels{ -30 };
 constexpr int MaximumGainDecibels{ 20 };
@@ -497,11 +499,13 @@ bool CMainWindow::Initialize()
 	connect(m_pTray, &CTrayIcon::QuitRequested, qApp, &QApplication::quit);
 
 	m_session.SetEndedCallback([this]() {
-		// Arrives on the PipeWire thread; the widgets are the UI thread's.
+		// Arrives on the PipeWire or the bus thread; the widgets are the UI thread's.
 		QMetaObject::invokeMethod(this, [this]() { OnCaptureWithdrawn(); }, Qt::QueuedConnection);
 	});
 
-	return m_session.Initialize();
+	return m_session.Initialize([this]() {
+		QMetaObject::invokeMethod(this, [this]() { m_session.Update(); }, Qt::QueuedConnection);
+	});
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1092,7 +1096,27 @@ void CMainWindow::StartRecording()
 		request.source = source == SourceWindow ? Klip::Capture::ESourceType::Window
 		                                        : Klip::Capture::ESourceType::Screen;
 
-		m_session.Start(request, [this](bool started) {
+		bool const keeps{ Klip::Capture::KeepsGrant(request.source, request.rememberWindow) };
+		char const* tokenKey{ request.source == Klip::Capture::ESourceType::Window ? WindowTokenKey
+		                                                                           : ScreenTokenKey };
+		QSettings settings;
+
+		if (!keeps)
+		{
+			settings.remove(tokenKey);
+		}
+
+		request.restoreToken = settings.value(tokenKey).toString().toStdString();
+
+		m_session.Start(request, [this, keeps, tokenKey, sent = request.restoreToken](bool started) {
+			std::string const& granted{ m_session.GetRestoreToken() };
+
+			// Whether or not it started: the portal spent the token it was sent.
+			if (keeps && !granted.empty() && granted != sent)
+			{
+				QSettings{}.setValue(tokenKey, QString::fromStdString(granted));
+			}
+
 			m_pRecord->setEnabled(true);
 
 			if (started)

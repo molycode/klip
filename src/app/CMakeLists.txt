@@ -33,6 +33,7 @@ target_include_directories(Klip PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/private)
 target_compile_definitions(Klip PRIVATE KLIP_VERSION="${PROJECT_VERSION}")
 
 target_link_libraries(Klip PRIVATE
+	KlipBus
 	KlipCapture
 	KlipEncode
 	TgeInit
@@ -46,7 +47,7 @@ target_link_libraries(Klip PRIVATE
 
 KlipApplyCompileFlags(Klip)
 
-# Linking Qt means compiling its headers; see src/capture/CMakeLists.txt.
+# Qt's headers contain try/catch. Applied after the project flags so it lands last and wins.
 target_compile_options(Klip PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fexceptions>)
 
 # Guarded: a parent vendoring Klip is installing its own application, not this one.

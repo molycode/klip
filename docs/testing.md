@@ -22,6 +22,11 @@ suite's fake or nothing -- never the real one started on demand. Run it under th
 presets as well as Debug: UBSan is set to halt there, so a finding fails the suite rather than scrolling
 past.
 
+It reaches what a recording on a working desktop never does: a fake ScreenCast portal, on a connection of
+its own, answers every way the real one can -- a dismissed picker, refused sources, a stream with no size,
+several streams, no portal at all, one too old to persist a grant, and a cast the compositor withdraws --
+and TSan watches the bus thread hand each answer over.
+
 ## The smoke test
 
 ```bash

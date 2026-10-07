@@ -29,16 +29,16 @@ uint64_t MonotonicNs()
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
-bool CSession::Initialize()
+bool CSession::Initialize(WakeCallback wake)
 {
-	m_portal.SetClosedCallback([this]() {
+	m_wake = std::move(wake);
+
+	return m_portal.Initialize([this]() {
 		if (m_onEnded)
 		{
 			m_onEnded();
 		}
 	});
-
-	return m_portal.Initialize();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -52,6 +52,19 @@ void CSession::Terminate()
 	m_encoder.Terminate();
 	m_portal.Terminate();
 	m_slots.clear();
+
+	// After the portal, which enqueues no more: an answer nobody took still holds a descriptor.
+	SAnswer answer;
+
+	while (m_answers.Dequeue(answer))
+	{
+		if (answer.grant.pipeWireFd >= 0)
+		{
+			::close(answer.grant.pipeWireFd);
+		}
+	}
+
+	m_wake = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -324,42 +337,68 @@ void CSession::Start(SRecordingRequest const& request, StartedCallback callback)
 	m_numEncodeFailures.store(0, std::memory_order_relaxed);
 	m_startFailure.clear();
 
-	m_portal.Start(m_request.source, m_request.rememberWindow,
-	               [this, callback = std::move(callback)](Capture::EPortalResult result,
-	                                                      Capture::SStreamInfo const& info,
-	                                                      int pipeWireFd) {
-		bool started{ false };
+	m_restoreToken.clear();
 
-		if (result == Capture::EPortalResult::Success)
+	// The answer crosses to this thread through the queue, paired with the Start it answers; the wake carries
+	// nothing.
+	m_portal.Start(m_request.source, m_request.rememberWindow, m_request.restoreToken,
+	               [this, callback = std::move(callback)](Capture::SPortalGrant const& grant) {
+		               m_answers.Enqueue(SAnswer{ grant, callback });
+		               m_wake();
+	               });
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSession::Update()
+{
+	SAnswer answer;
+
+	while (m_answers.Dequeue(answer))
+	{
+		Continue(answer);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSession::Continue(SAnswer const& answer)
+{
+	Capture::SPortalGrant const& grant{ answer.grant };
+	bool started{ false };
+
+	m_restoreToken = grant.restoreToken;
+
+	if (grant.result == Capture::EPortalResult::Success)
+	{
+		if (OpenAudio())
 		{
-			if (OpenAudio())
-			{
-				// Initialize owns the descriptor from here, including on failure.
-				started = m_stream.Initialize(
-					pipeWireFd, info.nodeId, m_request.maxFrameRate,
-					[this](Capture::SFrame const& frame) { OnFrame(frame); },
-					[this]() {
-						if (m_onEnded)
-						{
-							m_onEnded();
-						}
-					});
-			}
-			else
-			{
-				::close(pipeWireFd);
-			}
-
-			if (!started)
-			{
-				m_systemAudio.Terminate();
-				m_microphoneAudio.Terminate();
-				m_numAudioSources = 0;
-			}
+			// Initialize owns the descriptor from here, including on failure.
+			started = m_stream.Initialize(
+				grant.pipeWireFd, grant.stream.nodeId, m_request.maxFrameRate,
+				[this](Capture::SFrame const& frame) { OnFrame(frame); },
+				[this]() {
+					if (m_onEnded)
+					{
+						m_onEnded();
+					}
+				});
+		}
+		else
+		{
+			::close(grant.pipeWireFd);
 		}
 
-		callback(started);
-	});
+		if (!started)
+		{
+			m_systemAudio.Terminate();
+			m_microphoneAudio.Terminate();
+			m_numAudioSources = 0;
+		}
+	}
+
+	if (answer.callback)
+	{
+		answer.callback(started);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

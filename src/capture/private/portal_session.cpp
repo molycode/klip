@@ -1,42 +1,21 @@
 #include "capture/portal_session.hpp"
 
+#include "bus/connection.hpp"
+#include "bus/portal.hpp"
 #include "log.hpp"
 
-#include <QtCore/QRandomGenerator>
-#include <QtCore/QSettings>
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusInterface>
-#include <QtDBus/QDBusMetaType>
-#include <QtDBus/QDBusReply>
-#include <QtDBus/QDBusUnixFileDescriptor>
+#include <systemd/sd-bus.h>
 #include <tge/profiling/profiling.hpp>
 
-#include <unistd.h>
-
-namespace Klip::Capture
-{
-// a(ua{sv})
-struct SPortalStream final
-{
-	uint32_t    nodeId{ 0 };
-	QVariantMap properties;
-};
-} // namespace Klip::Capture
-
-Q_DECLARE_METATYPE(Klip::Capture::SPortalStream)
-Q_DECLARE_METATYPE(QList<Klip::Capture::SPortalStream>)
+#include <fcntl.h>
+#include <vector>
 
 namespace Klip::Capture
 {
 namespace
 {
-constexpr char const* PortalService{ "org.freedesktop.portal.Desktop" };
-constexpr char const* PortalPath{ "/org/freedesktop/portal/desktop" };
 constexpr char const* ScreenCastInterface{ "org.freedesktop.portal.ScreenCast" };
-constexpr char const* RequestInterface{ "org.freedesktop.portal.Request" };
 constexpr char const* SessionInterface{ "org.freedesktop.portal.Session" };
-constexpr char const* ScreenTokenKey{ "portal/restoreToken/screen" };
-constexpr char const* WindowTokenKey{ "portal/restoreToken/window" };
 
 // Fixed by the ScreenCast portal specification.
 constexpr uint32_t SourceTypeMonitor{ 1 };
@@ -45,83 +24,108 @@ constexpr uint32_t CursorModeEmbedded{ 2 };
 constexpr uint32_t DoNotPersist{ 0 };
 constexpr uint32_t PersistUntilRevoked{ 2 };
 
-constexpr uint32_t ResponseSuccess{ 0 };
-constexpr uint32_t ResponseCancelled{ 1 };
-
 // persist_mode and restore_token arrived in 4.
 constexpr uint32_t MinimumPortalVersion{ 4 };
 
-uint32_t ReadPortalProperty(char const* pName)
+struct SPortalStream final
 {
-	QDBusInterface properties{ PortalService, PortalPath, "org.freedesktop.DBus.Properties",
-	                           QDBusConnection::sessionBus() };
+	uint32_t nodeId{ 0 };
+	int32_t  width{ 0 };
+	int32_t  height{ 0 };
+};
 
-	QDBusReply<QVariant> const reply{ properties.call("Get", ScreenCastInterface, pName) };
+uint32_t ReadPortalProperty(sd_bus* pBus, char const* pName)
+{
+	sd_bus_error error{ SD_BUS_ERROR_NULL };
+	uint32_t value{ 0 };
 
-	return reply.isValid() ? reply.value().toUInt() : 0;
+	if (sd_bus_get_property_trivial(pBus, Bus::PortalService, Bus::PortalPath, ScreenCastInterface, pName, &error,
+	                                'u', &value) < 0)
+	{
+		value = 0;
+	}
+
+	sd_bus_error_free(&error);
+
+	return value;
 }
 
-bool ReadSize(QVariantMap const& properties, uint32_t& width, uint32_t& height)
+// a(ua{sv}), where each dictionary may carry a (ii) size.
+int ReadStreams(sd_bus_message* pMessage, std::vector<SPortalStream>& streams)
 {
-	bool read{ false };
+	int result{ sd_bus_message_enter_container(pMessage, 'v', "a(ua{sv})") };
 
-	if (properties.contains("size"))
+	if (result >= 0)
 	{
-		QDBusArgument const size{ properties.value("size").value<QDBusArgument>() };
+		result = sd_bus_message_enter_container(pMessage, 'a', "(ua{sv})");
+	}
 
-		int32_t rawWidth{ 0 };
-		int32_t rawHeight{ 0 };
+	int entered{ result };
 
-		size.beginStructure();
-		size >> rawWidth >> rawHeight;
-		size.endStructure();
+	while (result >= 0 && entered > 0)
+	{
+		entered = sd_bus_message_enter_container(pMessage, 'r', "ua{sv}");
 
-		if (rawWidth > 0 && rawHeight > 0)
+		if (entered > 0)
 		{
-			width = static_cast<uint32_t>(rawWidth);
-			height = static_cast<uint32_t>(rawHeight);
-			read = true;
+			SPortalStream stream;
+			result = sd_bus_message_read(pMessage, "u", &stream.nodeId);
+
+			if (result >= 0)
+			{
+				result = Bus::ReadDict(pMessage, [&stream](std::string_view key, sd_bus_message* pEntry) {
+					return key == "size" && sd_bus_message_read(pEntry, "v", "(ii)", &stream.width, &stream.height) >= 0;
+				});
+			}
+
+			if (result >= 0)
+			{
+				result = sd_bus_message_exit_container(pMessage);
+				streams.push_back(stream);
+			}
+		}
+		else
+		{
+			result = entered;
 		}
 	}
 
-	return read;
+	if (result >= 0)
+	{
+		result = sd_bus_message_exit_container(pMessage);
+	}
+
+	if (result >= 0)
+	{
+		result = sd_bus_message_exit_container(pMessage);
+	}
+
+	return result;
 }
 } // namespace
 
-QDBusArgument& operator<<(QDBusArgument& argument, SPortalStream const& stream)
+//////////////////////////////////////////////////////////////////////////
+bool KeepsGrant(ESourceType source, bool rememberWindow)
 {
-	argument.beginStructure();
-	argument << stream.nodeId << stream.properties;
-	argument.endStructure();
-
-	return argument;
+	return source == ESourceType::Screen || rememberWindow;
 }
 
 //////////////////////////////////////////////////////////////////////////
-QDBusArgument const& operator>>(QDBusArgument const& argument, SPortalStream& stream)
-{
-	argument.beginStructure();
-	argument >> stream.nodeId >> stream.properties;
-	argument.endStructure();
-
-	return argument;
-}
-
-//////////////////////////////////////////////////////////////////////////
-CPortalSession::CPortalSession(QObject* pParent)
-	: QObject(pParent)
-{
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool CPortalSession::Initialize()
+bool CPortalSession::Initialize(ClosedCallback onClosed)
 {
 	TGE_PROFILE_SCOPE_N("Portal: initialize");
 
-	qDBusRegisterMetaType<SPortalStream>();
-	qDBusRegisterMetaType<QList<SPortalStream>>();
+	m_onClosed = std::move(onClosed);
 
-	uint32_t const version{ ReadPortalProperty("version") };
+	Bus::gConnection.Run([this](sd_bus* pBus) { Probe(pBus); });
+
+	return m_initialized;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::Probe(sd_bus* pBus)
+{
+	uint32_t const version{ ReadPortalProperty(pBus, "version") };
 
 	if (version == 0)
 	{
@@ -135,8 +139,8 @@ bool CPortalSession::Initialize()
 	}
 	else
 	{
-		m_availableSourceTypes = ReadPortalProperty("AvailableSourceTypes");
-		m_availableCursorModes = ReadPortalProperty("AvailableCursorModes");
+		m_availableSourceTypes = ReadPortalProperty(pBus, "AvailableSourceTypes");
+		m_availableCursorModes = ReadPortalProperty(pBus, "AvailableCursorModes");
 
 		if ((m_availableSourceTypes & SourceTypeMonitor) == 0)
 		{
@@ -150,33 +154,50 @@ bool CPortalSession::Initialize()
 			m_initialized = true;
 		}
 	}
+}
 
-	return m_initialized;
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::Terminate()
+{
+	Bus::gConnection.Run([this](sd_bus* pBus) {
+		CloseSession(pBus);
+
+		m_pResponseSlot = sd_bus_slot_unref(m_pResponseSlot);
+		m_callback = nullptr;
+		m_onClosed = nullptr;
+		m_step = EStep::None;
+		m_initialized = false;
+		m_busy = false;
+	});
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CPortalSession::Close()
 {
+	Bus::gConnection.Post([this](sd_bus* pBus) { CloseSession(pBus); });
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::CloseSession(sd_bus* pBus)
+{
 	TGE_PROFILE_SCOPE_N("Portal: close");
 
-	if (!m_sessionHandle.isEmpty())
+	if (!m_sessionHandle.empty())
 	{
-		// Cleared before the call, and left cleared: the Closed that follows is ours, and it arrives
-		// whenever D-Bus gets round to it rather than inside this function.
+		// Unsubscribed before the call, and left so: the Closed that may follow is Klip's own doing.
 		m_sessionLive = false;
+		m_pClosedSlot = sd_bus_slot_unref(m_pClosedSlot);
 
-		QDBusConnection::sessionBus().disconnect(PortalService, m_sessionHandle, SessionInterface,
-		                                         QStringLiteral("Closed"), this, SLOT(OnSessionClosed()));
+		sd_bus_error error{ SD_BUS_ERROR_NULL };
+		int const result{ sd_bus_call_method(pBus, Bus::PortalService, m_sessionHandle.c_str(), SessionInterface,
+		                                     "Close", &error, nullptr, "") };
 
-		QDBusInterface session{ PortalService, m_sessionHandle, SessionInterface,
-			                    QDBusConnection::sessionBus() };
-		QDBusMessage const reply{ session.call("Close") };
-
-		if (reply.type() == QDBusMessage::ErrorMessage)
+		if (result < 0)
 		{
-			gLog.Warning("Closing the portal session failed: {}", reply.errorMessage().toStdString());
+			gLog.Warning("Closing the portal session failed: {}", Bus::Describe(error, result));
 		}
 
+		sd_bus_error_free(&error);
 		m_sessionHandle.clear();
 	}
 }
@@ -190,6 +211,7 @@ void CPortalSession::OnSessionClosed()
 
 		gLog.Warning("The compositor ended the screen cast.");
 
+		m_pClosedSlot = sd_bus_slot_unref(m_pClosedSlot);
 		m_sessionHandle.clear();
 
 		if (m_onClosed)
@@ -200,285 +222,321 @@ void CPortalSession::OnSessionClosed()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CPortalSession::Terminate()
+void CPortalSession::Start(ESourceType source, bool rememberWindow, std::string restoreToken,
+                           ResultCallback callback)
 {
-	Close();
-
-	m_callback = nullptr;
-	m_onClosed = nullptr;
-	m_requestPath.clear();
-	m_initialized = false;
-	m_busy = false;
-}
-
-//////////////////////////////////////////////////////////////////////////
-QString CPortalSession::MakeToken()
-{
-	++m_tokenCounter;
-
-	return QStringLiteral("klip_%1_%2").arg(QRandomGenerator::global()->generate()).arg(m_tokenCounter);
-}
-
-//////////////////////////////////////////////////////////////////////////
-QString CPortalSession::PrepareRequest(QString const& token, char const* pSlot)
-{
-	QString sender{ QDBusConnection::sessionBus().baseService().mid(1) };
-	sender.replace('.', '_');
-
-	m_requestPath = QStringLiteral("/org/freedesktop/portal/desktop/request/%1/%2").arg(sender, token);
-
-	QDBusConnection::sessionBus().connect(PortalService, m_requestPath, RequestInterface,
-	                                      QStringLiteral("Response"), this, pSlot);
-
-	return m_requestPath;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CPortalSession::Start(ESourceType source, bool rememberWindow, ResultCallback callback)
-{
-	TGE_PROFILE_SCOPE_N("Portal: create session");
-
-	m_source = source;
-
-	m_rememberWindow = rememberWindow;
-
-	// A screen is the same screen next time, so its grant is always worth keeping. Which window someone
-	// wants is a fresh question unless they say otherwise, so that grant is dropped and the picker returns.
-	QSettings settings;
-
-	if (source != ESourceType::Screen && !m_rememberWindow)
-	{
-		settings.remove(WindowTokenKey);
-	}
-
-	m_restoreToken =
-		settings.value(source == ESourceType::Screen ? ScreenTokenKey : WindowTokenKey).toString();
-
-	if (!m_initialized || m_busy)
-	{
-		gLog.Error("Start called on a portal session that is {}.", m_busy ? "already running" : "not ready");
-		callback(EPortalResult::Failed, SStreamInfo{}, -1);
-	}
-	else
-	{
-		m_callback = std::move(callback);
-		m_busy = true;
-
-		QString const token{ MakeToken() };
-		PrepareRequest(token, SLOT(OnCreateSessionResponse(uint, QVariantMap)));
-
-		QVariantMap options;
-		options["handle_token"] = token;
-		options["session_handle_token"] = MakeToken();
-
-		QDBusInterface screenCast{ PortalService, PortalPath, ScreenCastInterface,
-		                           QDBusConnection::sessionBus() };
-
-		QDBusReply<QDBusObjectPath> const reply{ screenCast.call("CreateSession", options) };
-
-		if (!reply.isValid())
+	Bus::gConnection.Post([this, source, rememberWindow, restoreToken = std::move(restoreToken),
+	                       callback = std::move(callback)](sd_bus* pBus) mutable {
+		if (!m_initialized || m_busy)
 		{
-			gLog.Error("CreateSession failed: {}", reply.error().message().toStdString());
-			Finish(EPortalResult::Failed, SStreamInfo{}, -1);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CPortalSession::OnCreateSessionResponse(uint response, QVariantMap const& results)
-{
-	TGE_PROFILE_SCOPE_N("Portal: select sources");
-
-	QDBusConnection::sessionBus().disconnect(PortalService, m_requestPath, RequestInterface,
-	                                         QStringLiteral("Response"), this,
-	                                         SLOT(OnCreateSessionResponse(uint, QVariantMap)));
-
-	if (response != ResponseSuccess)
-	{
-		gLog.Error("CreateSession returned {}.", response);
-		Finish(EPortalResult::Failed, SStreamInfo{}, -1);
-	}
-	else
-	{
-		m_sessionHandle = results.value("session_handle").toString();
-
-		// The spec's own notice that a cast has ended. The PipeWire stream does not reliably say so.
-		QDBusConnection::sessionBus().connect(PortalService, m_sessionHandle, SessionInterface,
-		                                      QStringLiteral("Closed"), this, SLOT(OnSessionClosed()));
-
-		m_sessionLive = true;
-
-		QString const token{ MakeToken() };
-		PrepareRequest(token, SLOT(OnSelectSourcesResponse(uint, QVariantMap)));
-
-		QVariantMap options;
-		options["handle_token"] = token;
-		options["types"] = m_source == ESourceType::Window ? SourceTypeWindow : SourceTypeMonitor;
-		options["multiple"] = false;
-		options["cursor_mode"] = CursorModeEmbedded;
-		options["persist_mode"] = m_source == ESourceType::Window && !m_rememberWindow
-		                              ? DoNotPersist
-		                              : PersistUntilRevoked;
-
-		if (!m_restoreToken.isEmpty())
-		{
-			options["restore_token"] = m_restoreToken;
-		}
-
-		QDBusInterface screenCast{ PortalService, PortalPath, ScreenCastInterface,
-		                           QDBusConnection::sessionBus() };
-
-		QDBusReply<QDBusObjectPath> const reply{
-			screenCast.call("SelectSources", QVariant::fromValue(QDBusObjectPath(m_sessionHandle)), options)
-		};
-
-		if (!reply.isValid())
-		{
-			gLog.Error("SelectSources failed: {}", reply.error().message().toStdString());
-			Finish(EPortalResult::Failed, SStreamInfo{}, -1);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CPortalSession::OnSelectSourcesResponse(uint response, QVariantMap const& results)
-{
-	TGE_PROFILE_SCOPE_N("Portal: start");
-
-	QDBusConnection::sessionBus().disconnect(PortalService, m_requestPath, RequestInterface,
-	                                         QStringLiteral("Response"), this,
-	                                         SLOT(OnSelectSourcesResponse(uint, QVariantMap)));
-
-	if (response != ResponseSuccess)
-	{
-		gLog.Error("SelectSources returned {}.", response);
-		Finish(EPortalResult::Failed, SStreamInfo{}, -1);
-	}
-	else
-	{
-		QString const token{ MakeToken() };
-		PrepareRequest(token, SLOT(OnStartResponse(uint, QVariantMap)));
-
-		QVariantMap options;
-		options["handle_token"] = token;
-
-		QDBusInterface screenCast{ PortalService, PortalPath, ScreenCastInterface,
-		                           QDBusConnection::sessionBus() };
-
-		QDBusReply<QDBusObjectPath> const reply{
-			screenCast.call("Start", QVariant::fromValue(QDBusObjectPath(m_sessionHandle)), QString{}, options)
-		};
-
-		if (!reply.isValid())
-		{
-			gLog.Error("Start failed: {}", reply.error().message().toStdString());
-			Finish(EPortalResult::Failed, SStreamInfo{}, -1);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CPortalSession::OnStartResponse(uint response, QVariantMap const& results)
-{
-	TGE_PROFILE_SCOPE_N("Portal: open remote");
-
-	QDBusConnection::sessionBus().disconnect(PortalService, m_requestPath, RequestInterface,
-	                                         QStringLiteral("Response"), this,
-	                                         SLOT(OnStartResponse(uint, QVariantMap)));
-
-	if (response == ResponseCancelled)
-	{
-		gLog.Warning("The screen-cast request was dismissed.");
-		Finish(EPortalResult::Cancelled, SStreamInfo{}, -1);
-	}
-	else if (response != ResponseSuccess)
-	{
-		gLog.Error("Start returned {}.", response);
-		Finish(EPortalResult::Failed, SStreamInfo{}, -1);
-	}
-	else
-	{
-		QString const restoreToken{ results.value("restore_token").toString() };
-
-		bool const keeps{ m_source == ESourceType::Screen || m_rememberWindow };
-
-		if (keeps && !restoreToken.isEmpty() && restoreToken != m_restoreToken)
-		{
-			m_restoreToken = restoreToken;
-
-			QSettings settings;
-			settings.setValue(m_source == ESourceType::Window ? WindowTokenKey : ScreenTokenKey,
-			                  m_restoreToken);
-		}
-
-		QList<SPortalStream> const streams{
-			qdbus_cast<QList<SPortalStream>>(results.value("streams"))
-		};
-
-		SStreamInfo info;
-
-		if (streams.size() > 1)
-		{
-			// multiple is already false in SelectSources; some pickers offer a choice of several anyway.
-			gLog.Warning("{} sources were shared; Klip records the first.", streams.size());
-		}
-
-		if (streams.isEmpty())
-		{
-			gLog.Error("The portal granted the request but returned no stream.");
-			Finish(EPortalResult::Failed, info, -1);
-		}
-		else if (!ReadSize(streams.first().properties, info.width, info.height))
-		{
-			gLog.Error("The granted stream carries no usable size.");
-			Finish(EPortalResult::Failed, info, -1);
+			// Directly rather than through Finish, which would close the session another Start has open.
+			gLog.Error("Start called on a portal session that is {}.", m_busy ? "already running" : "not ready");
+			callback(SPortalGrant{});
 		}
 		else
 		{
-			info.nodeId = streams.first().nodeId;
+			m_source = source;
+			m_rememberWindow = rememberWindow;
+			m_restoreToken = std::move(restoreToken);
 
+			Begin(pBus, std::move(callback));
+		}
+	});
+}
 
-			QDBusInterface screenCast{ PortalService, PortalPath, ScreenCastInterface,
-			                           QDBusConnection::sessionBus() };
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::Begin(sd_bus* pBus, ResultCallback callback)
+{
+	TGE_PROFILE_SCOPE_N("Portal: create session");
 
-			QDBusReply<QDBusUnixFileDescriptor> const reply{
-				screenCast.call("OpenPipeWireRemote", QVariant::fromValue(QDBusObjectPath(m_sessionHandle)),
-				                QVariantMap{})
-			};
+	m_callback = std::move(callback);
+	m_busy = true;
 
-			if (!reply.isValid())
-			{
-				gLog.Error("OpenPipeWireRemote failed: {}", reply.error().message().toStdString());
-				Finish(EPortalResult::Failed, info, -1);
-			}
-			else
-			{
-				// QDBusUnixFileDescriptor closes its copy when the reply dies.
-				int const pipeWireFd{ ::dup(reply.value().fileDescriptor()) };
+	bool const sent{ Request(pBus, EStep::CreateSession, "CreateSession",
+	                         [](sd_bus_message* pCall, std::string const& token) {
+		                         return Bus::AppendOptions(pCall, { { "handle_token", token },
+		                                                            { "session_handle_token",
+		                                                              Bus::MakeHandleToken() } });
+	                         }) };
 
-				if (pipeWireFd < 0)
-				{
-					gLog.Error("Could not duplicate the PipeWire descriptor.");
-					Finish(EPortalResult::Failed, info, -1);
-				}
-				else
-				{
-					gLog.Info("Capturing node {} at {}x{}", info.nodeId, info.width, info.height);
-					Finish(EPortalResult::Success, info, pipeWireFd);
-				}
-			}
+	if (!sent)
+	{
+		Finish(pBus, SPortalGrant{});
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CPortalSession::Request(sd_bus* pBus, EStep step, char const* pMember,
+                             std::function<int(sd_bus_message*, std::string const& token)> const& fill)
+{
+	std::string const token{ Bus::MakeHandleToken() };
+	std::string const path{ Bus::GetRequestPath(pBus, token) };
+
+	// In the member's own scope, so it may reach OnResponse.
+	sd_bus_message_handler_t const onResponse{ [](sd_bus_message* pMessage, void* pSession, sd_bus_error*) {
+		static_cast<CPortalSession*>(pSession)->OnResponse(pMessage);
+
+		return 0;
+	} };
+
+	m_pResponseSlot = sd_bus_slot_unref(m_pResponseSlot);
+	m_step = step;
+
+	sd_bus_error error{ SD_BUS_ERROR_NULL };
+	sd_bus_message* pCall{ nullptr };
+	int result{ sd_bus_match_signal(pBus, &m_pResponseSlot, Bus::PortalService, path.c_str(), Bus::RequestInterface,
+	                                "Response", onResponse, this) };
+
+	if (result >= 0)
+	{
+		result = sd_bus_message_new_method_call(pBus, &pCall, Bus::PortalService, Bus::PortalPath,
+		                                        ScreenCastInterface, pMember);
+	}
+
+	if (result >= 0)
+	{
+		result = fill(pCall, token);
+	}
+
+	if (result >= 0)
+	{
+		result = sd_bus_call(pBus, pCall, 0, &error, nullptr);
+	}
+
+	if (result < 0)
+	{
+		gLog.Error("{} failed: {}", pMember, Bus::Describe(error, result));
+		m_pResponseSlot = sd_bus_slot_unref(m_pResponseSlot);
+		m_step = EStep::None;
+	}
+
+	sd_bus_message_unref(pCall);
+	sd_bus_error_free(&error);
+
+	return result >= 0;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::OnResponse(sd_bus_message* pMessage)
+{
+	sd_bus* const pBus{ sd_bus_message_get_bus(pMessage) };
+	EStep const step{ m_step };
+	char const* pMember{ step == EStep::CreateSession ? "CreateSession"
+	                     : step == EStep::SelectSources ? "SelectSources"
+	                                                    : "Start" };
+	uint32_t response{ 0 };
+
+	// Unsubscribed inside its own callback, which sd-bus allows.
+	m_pResponseSlot = sd_bus_slot_unref(m_pResponseSlot);
+	m_step = EStep::None;
+
+	if (sd_bus_message_read(pMessage, "u", &response) < 0)
+	{
+		gLog.Error("{} answered with a malformed Response.", pMember);
+		Finish(pBus, SPortalGrant{});
+	}
+	else if (step == EStep::Start && response == Bus::ResponseCancelled)
+	{
+		SPortalGrant cancelled;
+		cancelled.result = EPortalResult::Cancelled;
+
+		gLog.Warning("The screen-cast request was dismissed.");
+		Finish(pBus, cancelled);
+	}
+	else if (response != Bus::ResponseSuccess)
+	{
+		gLog.Error("{} returned {}.", pMember, response);
+		Finish(pBus, SPortalGrant{});
+	}
+	else if (step == EStep::CreateSession)
+	{
+		OnSessionCreated(pBus, pMessage);
+	}
+	else if (step == EStep::SelectSources)
+	{
+		OnSourcesSelected(pBus);
+	}
+	else
+	{
+		OnStarted(pBus, pMessage);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::OnSessionCreated(sd_bus* pBus, sd_bus_message* pResults)
+{
+	TGE_PROFILE_SCOPE_N("Portal: select sources");
+
+	Bus::ReadDict(pResults, [this](std::string_view key, sd_bus_message* pEntry) {
+		return key == "session_handle" && Bus::ReadString(pEntry, m_sessionHandle);
+	});
+
+	sd_bus_message_handler_t const onClosed{ [](sd_bus_message*, void* pSession, sd_bus_error*) {
+		static_cast<CPortalSession*>(pSession)->OnSessionClosed();
+
+		return 0;
+	} };
+
+	// The spec's own notice that a cast has ended. The PipeWire stream does not reliably say so.
+	int const subscribed{ m_sessionHandle.empty()
+	                          ? -1
+	                          : sd_bus_match_signal(pBus, &m_pClosedSlot, Bus::PortalService, m_sessionHandle.c_str(),
+	                                                SessionInterface, "Closed", onClosed, this) };
+
+	if (subscribed < 0)
+	{
+		gLog.Error("CreateSession gave no session to follow.");
+		Finish(pBus, SPortalGrant{});
+	}
+	else
+	{
+		m_sessionLive = true;
+
+		std::vector<Bus::SOption> options{
+			{ "types", m_source == ESourceType::Window ? SourceTypeWindow : SourceTypeMonitor },
+			{ "multiple", false },
+			{ "cursor_mode", CursorModeEmbedded },
+			{ "persist_mode", KeepsGrant(m_source, m_rememberWindow) ? PersistUntilRevoked : DoNotPersist },
+		};
+
+		if (!m_restoreToken.empty())
+		{
+			options.push_back({ "restore_token", m_restoreToken });
+		}
+
+		bool const sent{ Request(pBus, EStep::SelectSources, "SelectSources",
+		                         [this, &options](sd_bus_message* pCall, std::string const& token) {
+			                         options.push_back({ "handle_token", token });
+
+			                         int result{ sd_bus_message_append(pCall, "o", m_sessionHandle.c_str()) };
+
+			                         return result < 0 ? result : Bus::AppendOptions(pCall, options);
+		                         }) };
+
+		if (!sent)
+		{
+			Finish(pBus, SPortalGrant{});
 		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CPortalSession::Finish(EPortalResult result, SStreamInfo const& info, int pipeWireFd)
+void CPortalSession::OnSourcesSelected(sd_bus* pBus)
+{
+	TGE_PROFILE_SCOPE_N("Portal: start");
+
+	bool const sent{ Request(pBus, EStep::Start, "Start", [this](sd_bus_message* pCall, std::string const& token) {
+		int result{ sd_bus_message_append(pCall, "os", m_sessionHandle.c_str(), "") };
+
+		return result < 0 ? result : Bus::AppendOptions(pCall, { { "handle_token", token } });
+	}) };
+
+	if (!sent)
+	{
+		Finish(pBus, SPortalGrant{});
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::OnStarted(sd_bus* pBus, sd_bus_message* pResults)
+{
+	TGE_PROFILE_SCOPE_N("Portal: open remote");
+
+	SPortalGrant grant;
+	std::vector<SPortalStream> streams;
+
+	int const read{ Bus::ReadDict(pResults, [&grant, &streams](std::string_view key, sd_bus_message* pEntry) {
+		bool consumed{ false };
+
+		if (key == "restore_token")
+		{
+			consumed = Bus::ReadString(pEntry, grant.restoreToken);
+		}
+		else if (key == "streams")
+		{
+			consumed = ReadStreams(pEntry, streams) >= 0;
+		}
+
+		return consumed;
+	}) };
+
+	if (streams.size() > 1)
+	{
+		// multiple is already false in SelectSources; some pickers offer a choice of several anyway.
+		gLog.Warning("{} sources were shared; Klip records the first.", streams.size());
+	}
+
+	if (read < 0 || streams.empty())
+	{
+		gLog.Error("The portal granted the request but returned no stream.");
+		Finish(pBus, grant);
+	}
+	else if (streams.front().width <= 0 || streams.front().height <= 0)
+	{
+		gLog.Error("The granted stream carries no usable size.");
+		Finish(pBus, grant);
+	}
+	else
+	{
+		grant.stream.nodeId = streams.front().nodeId;
+		grant.stream.width = static_cast<uint32_t>(streams.front().width);
+		grant.stream.height = static_cast<uint32_t>(streams.front().height);
+
+		OpenRemote(pBus, std::move(grant));
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::OpenRemote(sd_bus* pBus, SPortalGrant grant)
+{
+	sd_bus_error error{ SD_BUS_ERROR_NULL };
+	sd_bus_message* pReply{ nullptr };
+	int descriptor{ -1 };
+
+	int result{ sd_bus_call_method(pBus, Bus::PortalService, Bus::PortalPath, ScreenCastInterface,
+	                               "OpenPipeWireRemote", &error, &pReply, "oa{sv}", m_sessionHandle.c_str(), 0) };
+
+	if (result >= 0)
+	{
+		result = sd_bus_message_read(pReply, "h", &descriptor);
+	}
+
+	if (result < 0)
+	{
+		gLog.Error("OpenPipeWireRemote failed: {}", Bus::Describe(error, result));
+		Finish(pBus, grant);
+	}
+	else
+	{
+		// The reply closes its own copy when it goes.
+		grant.pipeWireFd = fcntl(descriptor, F_DUPFD_CLOEXEC, 3);
+
+		if (grant.pipeWireFd < 0)
+		{
+			gLog.Error("Could not duplicate the PipeWire descriptor.");
+			Finish(pBus, grant);
+		}
+		else
+		{
+			gLog.Info("Capturing node {} at {}x{}", grant.stream.nodeId, grant.stream.width, grant.stream.height);
+
+			grant.result = EPortalResult::Success;
+			Finish(pBus, grant);
+		}
+	}
+
+	sd_bus_message_unref(pReply);
+	sd_bus_error_free(&error);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CPortalSession::Finish(sd_bus* pBus, SPortalGrant const& grant)
 {
 	// A refused or abandoned request leaves a session the portal will close by itself, which would then
 	// read as the compositor withdrawing a cast that never started.
-	if (result != EPortalResult::Success)
+	if (grant.result != EPortalResult::Success)
 	{
-		Close();
+		CloseSession(pBus);
 	}
 
 	m_busy = false;
@@ -488,7 +546,7 @@ void CPortalSession::Finish(EPortalResult result, SStreamInfo const& info, int p
 
 	if (callback)
 	{
-		callback(result, info, pipeWireFd);
+		callback(grant);
 	}
 }
 } // namespace Klip::Capture

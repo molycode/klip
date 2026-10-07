@@ -25,6 +25,9 @@ struct SRecordingRequest final
 	Encode::SRegion      region;
 	Capture::ESourceType source{ Capture::ESourceType::Screen };
 	bool                 rememberWindow{ false };
+
+	// The portal's grant from last time, if it was kept; a picker appears without one.
+	std::string          restoreToken;
 	Encode::ECodec       codec{ Encode::ECodec::H264 };
 	Encode::EQuality     quality{ Encode::EQuality::Balanced };
 
@@ -54,16 +57,19 @@ public:
 
 	static constexpr uint32_t InvalidSource{ std::numeric_limits<uint32_t>::max() };
 
-	// Asynchronous because the compositor decides whether it starts, not Klip.
+	// Asynchronous because the compositor decides whether it starts, not Klip. Fires from Update.
 	using StartedCallback = std::function<void(bool)>;
 
-	// Fires on the PipeWire thread.
+	// Fires on the PipeWire thread or the bus thread.
 	using EndedCallback = std::function<void()>;
+
+	// Fires on the bus thread, and asks only that Update be called on the thread that owns the session.
+	using WakeCallback = std::function<void()>;
 
 	CSession() = default;
 	~CSession() = default;
 
-	bool Initialize();
+	bool Initialize(WakeCallback wake);
 	void Terminate();
 
 	void SetEndedCallback(EndedCallback callback) { m_onEnded = std::move(callback); }
@@ -71,11 +77,17 @@ public:
 	void Start(SRecordingRequest const& request, StartedCallback callback);
 	bool Stop();
 
+	// Carries on a Start the portal has answered.
+	void Update();
+
 	bool IsRecording() const { return m_encoding.load(std::memory_order_acquire); }
 
 	SSessionStats GetStats() const;
 
 	std::string const& GetStartFailure() const { return m_startFailure; }
+
+	// What the portal granted on the last Start, empty when it granted nothing to keep.
+	std::string const& GetRestoreToken() const { return m_restoreToken; }
 
 	Capture::CAudioStream const& GetSystemAudio() const { return m_systemAudio; }
 	Capture::CAudioStream const& GetMicrophoneAudio() const { return m_microphoneAudio; }
@@ -92,6 +104,13 @@ private:
 		Capture::EPixelFormat format{ Capture::EPixelFormat::BGRx };
 	};
 
+	struct SAnswer final
+	{
+		Capture::SPortalGrant grant;
+		StartedCallback       callback;
+	};
+
+	void Continue(SAnswer const& answer);
 	void NoteEncodeFailure();
 	void OnFrame(Capture::SFrame const& frame);
 	void OnAudio(uint32_t source, Capture::SAudioBuffer const& buffer);
@@ -106,17 +125,20 @@ private:
 	Capture::CAudioStream    m_microphoneAudio;
 	Encode::CEncoder         m_encoder;
 
-	std::vector<SSlot>                      m_slots;
-	Tge::Threading::CMpscQueue<uint32_t>    m_filled;
-	Tge::Threading::CMpscQueue<uint32_t>    m_free;
-	std::counting_semaphore<>               m_filledCount{ 0 };
-	std::thread                             m_encoderThread;
+	std::vector<SSlot>                                 m_slots;
+	Tge::Threading::CMpscQueue<uint32_t>               m_filled;
+	Tge::Threading::CMpscQueue<uint32_t>               m_free;
+	Tge::Threading::CMpscQueue<SAnswer>                m_answers;
+	std::counting_semaphore<>                          m_filledCount{ 0 };
+	std::thread                                        m_encoderThread;
 
 	EndedCallback m_onEnded;
+	WakeCallback  m_wake;
 
 	SRecordingRequest m_request;
 
 	std::string m_startFailure;
+	std::string m_restoreToken;
 
 	uint32_t m_numAudioSources{ 0 };
 	uint32_t m_systemSource{ InvalidSource };

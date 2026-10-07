@@ -13,12 +13,16 @@ add_executable(KlipTests
 	tge_environment.hpp
 	tge_environment.cpp
 	bus/test_connection.cpp
+	capture/fake_portal.hpp
+	capture/fake_portal.cpp
+	capture/test_portal_session.cpp
 )
 
 target_include_directories(KlipTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(KlipTests PRIVATE
 	KlipBus
+	KlipCapture
 	TgeInit
 	TgeLogging
 	Tge::Testing

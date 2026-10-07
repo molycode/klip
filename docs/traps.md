@@ -124,6 +124,11 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
   Raising the standard therefore raises the CMake floor with it, which is why Klip asks for 23 and not for
   whatever is newest.
 
+- **`sd_bus_error` cannot be forward-declared before libsystemd 259.** Until then sd-bus declares it as a
+  typedef of an anonymous struct, so `struct sd_bus_error;` is a redefinition with a different type -- on
+  the floor's 255, never on this host's 259. A header that names it includes `<systemd/sd-bus.h>`; the
+  opaque `sd_bus`, `sd_bus_message` and `sd_bus_slot` forward-declare fine everywhere.
+
 ## Verifying
 
 - **Never conclude a recording worked because no crash occurred.** A zero-frame MP4 is a valid MP4. Gate

@@ -2,6 +2,7 @@
 #error "No KLIP_PLATFORM_* define. cmake/platform.cmake did not run."
 #endif // platform define present
 
+#include "bus/connection.hpp"
 #include "log.hpp"
 #include "main_window.hpp"
 #include "single_instance.hpp"
@@ -86,39 +87,52 @@ int main(int argc, char** argv)
 	{
 		Klip::gLog.Info("Klip {} started", KLIP_VERSION);
 
-		// Before anything makes a PipeWire object, which both the capture streams and the device
-		// listing do.
+		bool connected{ false };
+
+		// After tge-core, whose thread it runs on; every portal call goes through it.
 		{
-			TGE_PROFILE_SCOPE_N("Startup: pipewire");
-			Klip::Capture::InitializePipeWire();
+			TGE_PROFILE_SCOPE_N("Startup: session bus");
+			connected = Klip::Bus::gConnection.Initialize("klip-bus");
 		}
 
-		// Before the window: it lists only the codecs this card answered for.
+		if (connected)
 		{
-			TGE_PROFILE_SCOPE_N("Startup: encoder probe");
-			Klip::Encode::InitializeCapabilities();
+			// Before anything makes a PipeWire object, which both the capture streams and the device
+			// listing do.
+			{
+				TGE_PROFILE_SCOPE_N("Startup: pipewire");
+				Klip::Capture::InitializePipeWire();
+			}
+
+			// Before the window: it lists only the codecs this card answered for.
+			{
+				TGE_PROFILE_SCOPE_N("Startup: encoder probe");
+				Klip::Encode::InitializeCapabilities();
+			}
+
+			Klip::CMainWindow window;
+
+			bool opened{ false };
+
+			{
+				TGE_PROFILE_SCOPE_N("Startup: window");
+				opened = window.Initialize();
+			}
+
+			if (opened)
+			{
+				QObject::connect(&instance, &Klip::CSingleInstance::ShowRequested, &window,
+				                 &Klip::CMainWindow::Reveal);
+
+				window.show();
+				exitCode = QApplication::exec();
+			}
+
+			window.Terminate();
+			Klip::Bus::gConnection.Terminate();
+			Klip::Capture::TerminatePipeWire();
 		}
 
-		Klip::CMainWindow window;
-
-		bool opened{ false };
-
-		{
-			TGE_PROFILE_SCOPE_N("Startup: window");
-			opened = window.Initialize();
-		}
-
-		if (opened)
-		{
-			QObject::connect(&instance, &Klip::CSingleInstance::ShowRequested, &window,
-			                 &Klip::CMainWindow::Reveal);
-
-			window.show();
-			exitCode = QApplication::exec();
-		}
-
-		window.Terminate();
-		Klip::Capture::TerminatePipeWire();
 		instance.Terminate();
 
 		// Before the client is torn down at exit; a late static-dtor free then finds a null hook.
