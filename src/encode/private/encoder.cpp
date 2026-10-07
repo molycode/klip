@@ -659,14 +659,15 @@ bool CEncoder::Initialize(SSettings const& settings)
 	m_outputWidth = m_region.width;
 	m_outputHeight = m_region.height;
 	m_pVideoPacket = av_packet_alloc();
+	m_pHeldPacket = av_packet_alloc();
 	m_pAudioPacket = av_packet_alloc();
 	m_pDrmFrame = av_frame_alloc();
 	m_pFilteredFrame = av_frame_alloc();
 	m_pSoftwareFrame = av_frame_alloc();
 	m_pHardwareFrame = av_frame_alloc();
 
-	if (m_pVideoPacket == nullptr || m_pAudioPacket == nullptr || m_pDrmFrame == nullptr || m_pFilteredFrame == nullptr ||
-	    m_pSoftwareFrame == nullptr || m_pHardwareFrame == nullptr)
+	if (m_pVideoPacket == nullptr || m_pHeldPacket == nullptr || m_pAudioPacket == nullptr || m_pDrmFrame == nullptr ||
+	    m_pFilteredFrame == nullptr || m_pSoftwareFrame == nullptr || m_pHardwareFrame == nullptr)
 	{
 		gLog.Error("Could not allocate the encoder's frames.");
 	}
@@ -773,6 +774,7 @@ void CEncoder::Terminate()
 	av_frame_free(&m_pHardwareFrame);
 	av_frame_free(&m_pSoftwareFrame);
 	av_packet_free(&m_pVideoPacket);
+	av_packet_free(&m_pHeldPacket);
 	av_packet_free(&m_pAudioPacket);
 	av_frame_free(&m_pAudioFrame);
 	av_frame_free(&m_pMixFrame);
@@ -797,11 +799,10 @@ void CEncoder::Terminate()
 
 	m_headerWritten = false;
 	m_hasFirstTimestamp = false;
+	m_hasHeldPacket = false;
 	m_numFramesEncoded = 0;
 	m_bytesWritten = 0;
 	m_nextPts = 0;
-	m_lastPts = 0;
-	m_pLastEncoded = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1123,26 +1124,10 @@ bool CEncoder::DrainPackets(AVCodecContext* pContext, AVStream const* pStream, A
 			pPacket->stream_index = pStream->index;
 			m_bytesWritten.fetch_add(static_cast<uint64_t>(pPacket->size), std::memory_order_relaxed);
 
-			int writeResult{ 0 };
-
-			{
-				// Deferred for the same reason as the audio mutex: the wait is the number that matters.
-				std::unique_lock<std::mutex> guard{ m_muxMutex, std::defer_lock };
-
-				{
-					TGE_PROFILE_SCOPE_N("Wait: mux lock");
-					guard.lock();
-				}
-
-				TGE_PROFILE_SCOPE_N("Mux: write");
-				writeResult = av_interleaved_write_frame(m_pFormatContext, pPacket);
-			}
-
-			av_packet_unref(pPacket);
+			int const writeResult{ pStream == m_pStream ? HoldVideoPacket(pPacket) : WritePacket(pPacket) };
 
 			if (writeResult < 0)
 			{
-				gLog.Error("Could not write a packet: {}", Describe(writeResult));
 				drained = false;
 				result = writeResult;
 			}
@@ -1150,6 +1135,82 @@ bool CEncoder::DrainPackets(AVCodecContext* pContext, AVStream const* pStream, A
 	}
 
 	return drained;
+}
+
+//////////////////////////////////////////////////////////////////////////
+int CEncoder::WritePacket(AVPacket* pPacket)
+{
+	int writeResult{ 0 };
+
+	{
+		// Deferred for the same reason as the audio mutex: the wait is the number that matters.
+		std::unique_lock<std::mutex> guard{ m_muxMutex, std::defer_lock };
+
+		{
+			TGE_PROFILE_SCOPE_N("Wait: mux lock");
+			guard.lock();
+		}
+
+		TGE_PROFILE_SCOPE_N("Mux: write");
+		writeResult = av_interleaved_write_frame(m_pFormatContext, pPacket);
+	}
+
+	av_packet_unref(pPacket);
+
+	if (writeResult < 0)
+	{
+		gLog.Error("Could not write a packet: {}", Describe(writeResult));
+	}
+
+	return writeResult;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// VAAPI hands packets back without a duration. Written so, the last frame of an MP4 has none, the edit list
+// ends where that frame starts, and every player drops it.
+int CEncoder::HoldVideoPacket(AVPacket* pPacket)
+{
+	int writeResult{ 0 };
+
+	if (m_hasHeldPacket)
+	{
+		m_pHeldPacket->duration = pPacket->pts - m_pHeldPacket->pts;
+		writeResult = WritePacket(m_pHeldPacket);
+	}
+
+	av_packet_move_ref(m_pHeldPacket, pPacket);
+	m_hasHeldPacket = true;
+
+	return writeResult;
+}
+
+//////////////////////////////////////////////////////////////////////////
+int CEncoder::WriteHeldPacket(uint64_t endTimestampNs)
+{
+	int writeResult{ 0 };
+
+	if (m_hasHeldPacket)
+	{
+		int64_t duration{ av_rescale_q(NominalFrameMicroseconds, m_pCodecContext->time_base, m_pStream->time_base) };
+
+		if (endTimestampNs != 0 && m_hasFirstTimestamp && endTimestampNs > m_firstTimestampNs)
+		{
+			int64_t const endPts{ av_rescale_q(static_cast<int64_t>((endTimestampNs - m_firstTimestampNs) / 1000),
+			                                   m_pCodecContext->time_base, m_pStream->time_base) };
+
+			if (endPts > m_pHeldPacket->pts)
+			{
+				duration = endPts - m_pHeldPacket->pts;
+			}
+		}
+
+		m_pHeldPacket->duration = duration;
+		m_hasHeldPacket = false;
+
+		writeResult = WritePacket(m_pHeldPacket);
+	}
+
+	return writeResult;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1171,12 +1232,9 @@ bool CEncoder::SendToEncoder(AVFrame* pFrame, Capture::SFrame const& frame)
 	}
 
 	m_nextPts = pts + NominalFrameMicroseconds;
-	m_lastPts = pts;
 	pFrame->pts = pts;
 
 	bool submitted{ false };
-
-	m_pLastEncoded = pFrame;
 
 	int const sendResult{ avcodec_send_frame(m_pCodecContext, pFrame) };
 
@@ -1412,32 +1470,6 @@ bool CEncoder::Finish(uint64_t endTimestampNs)
 	}
 	else
 	{
-		if (endTimestampNs != 0 && m_numFramesEncoded > 0 && m_hasFirstTimestamp &&
-		    m_pLastEncoded != nullptr)
-		{
-			int64_t const endPts{ static_cast<int64_t>((endTimestampNs - m_firstTimestampNs) / 1000) };
-
-			if (endPts > m_lastPts + NominalFrameMicroseconds)
-			{
-				m_pLastEncoded->pts = endPts;
-
-				int const padResult{ avcodec_send_frame(m_pCodecContext, m_pLastEncoded) };
-
-				if (padResult < 0)
-				{
-					gLog.Warning("Could not hold the last frame to the end: {}", Describe(padResult));
-				}
-				else if (!DrainPackets(m_pCodecContext, m_pStream, m_pVideoPacket))
-				{
-					gLog.Warning("The held last frame produced no packet.");
-				}
-				else
-				{
-					++m_numFramesEncoded;
-				}
-			}
-		}
-
 		int flushResult{ 0 };
 
 		{
@@ -1449,7 +1481,7 @@ bool CEncoder::Finish(uint64_t endTimestampNs)
 		{
 			gLog.Error("Could not flush the encoder: {}", Describe(flushResult));
 		}
-		else if (DrainPackets(m_pCodecContext, m_pStream, m_pVideoPacket))
+		else if (DrainPackets(m_pCodecContext, m_pStream, m_pVideoPacket) && WriteHeldPacket(endTimestampNs) >= 0)
 		{
 			// Both encoders drained before the trailer, or the tail of one is lost.
 			FinishAudio();

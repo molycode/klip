@@ -41,7 +41,7 @@ public:
 
 	// Drains the encoder and writes the trailer. The file is not playable until this runs.
 	// endTimestampNs holds the last frame until then, so a screen that stopped changing does not
-	// shorten the recording. Zero ends the file at the last frame.
+	// shorten the recording. Zero gives the last frame a nominal frame's length.
 	bool Finish(uint64_t endTimestampNs);
 
 	uint64_t GetNumFramesEncoded() const { return m_numFramesEncoded.load(std::memory_order_relaxed); }
@@ -66,6 +66,9 @@ private:
 	void WaitForSurface(AVFrame const* pFrame);
 	bool SendToEncoder(AVFrame* pFrame, Capture::SFrame const& frame);
 	bool DrainPackets(AVCodecContext* pContext, AVStream const* pStream, AVPacket* pPacket);
+	int  WritePacket(AVPacket* pPacket);
+	int  HoldVideoPacket(AVPacket* pPacket);
+	int  WriteHeldPacket(uint64_t endTimestampNs);
 
 	void FillSilence(uint32_t source, uint64_t numSamples);
 	void LevelSources(int64_t toleranceNs);
@@ -85,15 +88,15 @@ private:
 	AVFilterContext* m_pGraphSink{ nullptr };
 	AVFrame*         m_pDrmFrame{ nullptr };
 	AVFrame*         m_pFilteredFrame{ nullptr };
-
-	// Whichever of the two above went to the encoder last; the paths use different ones.
-	AVFrame*         m_pLastEncoded{ nullptr };
 	AVCodecContext*  m_pCodecContext{ nullptr };
 	AVFormatContext* m_pFormatContext{ nullptr };
 	AVStream*        m_pStream{ nullptr };
 	AVFrame*         m_pSoftwareFrame{ nullptr };
 	AVFrame*         m_pHardwareFrame{ nullptr };
 	AVPacket*        m_pVideoPacket{ nullptr };
+
+	// The newest video packet, until the next one says how long it lasts.
+	AVPacket*        m_pHeldPacket{ nullptr };
 	SwsContext*      m_pScaler{ nullptr };
 
 	AVCodecContext* m_pAudioCodecContext{ nullptr };
@@ -138,13 +141,13 @@ private:
 	std::atomic<uint64_t> m_numFramesEncoded{ 0 };
 	std::atomic<uint64_t> m_bytesWritten{ 0 };
 	int64_t  m_nextPts{ 0 };
-	int64_t  m_lastPts{ 0 };
 
 	Capture::EPixelFormat m_sourceFormat{ Capture::EPixelFormat::BGRx };
 	Capture::EFrameMemory m_memory{ Capture::EFrameMemory::Mapped };
 	char                  m_devicePath[32]{};
 
 	bool m_hasFirstTimestamp{ false };
+	bool m_hasHeldPacket{ false };
 	bool m_headerWritten{ false };
 	bool m_reportedSyncFailure{ false };
 };

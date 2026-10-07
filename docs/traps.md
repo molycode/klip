@@ -76,6 +76,13 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
   `renderD128` takes all three. So Klip opens every encoder on every node that gives a VAAPI device and
   records on the richest, which costs about 8 ms per extra node at startup.
 
+- **VAAPI hands packets back with no duration, and MP4 needs the last one's.** The edit list ends at the
+  last packet's pts plus its duration, so with none it ends where the last frame starts and every player
+  drops that frame -- one packet short in `ffprobe`, gone entirely when the frame before it is a keyframe,
+  since the demuxer stops indexing at the first keyframe that reaches the end. So each video packet waits
+  for the next to give it a duration, and the last takes the stop time. Re-encoding the last frame at the
+  stop time instead only moves the problem onto the copy.
+
 ## The region selector
 
 - **Nothing composites behind a fullscreen window.** Measured on Mutter: where the region selector painted
