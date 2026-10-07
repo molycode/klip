@@ -87,9 +87,6 @@ public:
 	SSettings const& GetSettings() const { return m_settings; }
 	EState           GetState() const { return m_state; }
 
-	// From the first encoded frame, not from the grant; see EState::Recording.
-	bool IsEncoding() const { return m_session.IsRecording(); }
-
 	std::span<Encode::EContainer const> GetContainers() const { return m_containers; }
 	std::span<Encode::ECodec const>     GetCodecs() const { return m_codecs; }
 

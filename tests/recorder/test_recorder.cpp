@@ -277,3 +277,22 @@ TEST_F(CRecorderTest, FolderUnderAFileCannotBePrepared)
 	EXPECT_FALSE(m_recorder.PrepareRecording());
 	EXPECT_EQ(m_recorder.GetStatus(), "Cannot write to that folder");
 }
+
+//////////////////////////////////////////////////////////////////////////
+TEST_F(CRecorderTest, SecondStartWhileTheFirstAwaitsThePortalIsRefused)
+{
+	Tests::SFakeScript script;
+	script.holdStart = true;
+	gFakePortal.Configure(script);
+
+	ASSERT_TRUE(Initialize(MakeSettings()));
+	ASSERT_TRUE(m_recorder.PrepareRecording());
+
+	m_recorder.BeginRecording(Encode::SRegion{});
+	m_recorder.RequestCapture();
+
+	EXPECT_FALSE(m_recorder.PrepareRecording());
+	EXPECT_EQ(m_recorder.GetState(), Recorder::EState::Starting);
+	EXPECT_EQ(m_recorder.GetStatus(), "Waiting for permission…");
+	EXPECT_EQ(m_recorder.TakeReveal(), Recorder::EReveal::None);
+}

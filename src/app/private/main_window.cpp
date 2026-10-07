@@ -674,13 +674,16 @@ void CMainWindow::ShowInFileManager(QString const& filePath)
 //////////////////////////////////////////////////////////////////////////
 void CMainWindow::OnOpenPressed()
 {
-	ShowInFileManager(m_recorder.IsEncoding() ? QString{} : QString::fromStdString(m_recorder.GetLastPath()));
+	bool const idle{ m_recorder.GetState() == Recorder::EState::Idle };
+
+	ShowInFileManager(idle ? QString::fromStdString(m_recorder.GetLastPath()) : QString{});
 }
 
 //////////////////////////////////////////////////////////////////////////
+// A toggle while a start is still on its way is dropped: it would open a second portal request over the first.
 void CMainWindow::ToggleRecording()
 {
-	if (m_recorder.IsEncoding())
+	if (m_recorder.GetState() == Recorder::EState::Recording)
 	{
 		m_recorder.StopRecording();
 	}

@@ -128,7 +128,7 @@ bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Desktop::S
 //////////////////////////////////////////////////////////////////////////
 void CRecorder::Terminate()
 {
-	if (IsEncoding())
+	if (m_state == EState::Recording)
 	{
 		StopRecording();
 	}
@@ -147,7 +147,7 @@ void CRecorder::Update()
 	m_session.Update();
 
 	// Taken whether or not it still applies, so a late second call cannot stop the next recording.
-	if (m_withdrawn.exchange(false, std::memory_order_acq_rel) && IsEncoding())
+	if (m_withdrawn.exchange(false, std::memory_order_acq_rel) && m_state == EState::Recording)
 	{
 		StopRecording();
 		m_status = "Screen sharing was stopped";
@@ -327,41 +327,54 @@ void CRecorder::RefreshAudioDevices()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Refused without a word unless idle: a tray toggle can arrive while the window is still on its way out.
 bool CRecorder::PrepareRecording()
 {
-	std::filesystem::path const folder{ ToFolder(m_settings.directory) };
-	std::error_code             error;
+	bool prepared{ false };
 
-	m_region = Encode::SRegion{};
-
-	std::filesystem::create_directories(folder, error);
-
-	bool const exists{ !error && std::filesystem::is_directory(folder, error) };
-
-	if (!exists)
+	if (m_state == EState::Idle)
 	{
-		gLog.Error("Cannot create or write to {}", m_settings.directory);
-		ShowIdleState("Cannot write to that folder");
+		std::filesystem::path const folder{ ToFolder(m_settings.directory) };
+		std::error_code             error;
+
+		m_region = Encode::SRegion{};
+
+		std::filesystem::create_directories(folder, error);
+
+		prepared = !error && std::filesystem::is_directory(folder, error);
+
+		if (prepared)
+		{
+			m_state = EState::Starting;
+		}
+		else
+		{
+			gLog.Error("Cannot create or write to {}", m_settings.directory);
+			ShowIdleState("Cannot write to that folder");
+		}
 	}
 
-	return exists;
+	return prepared;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CRecorder::BeginRecording(Encode::SRegion const& region)
 {
+	TGE_ASSERT(m_state == EState::Starting, "BeginRecording comes only after a PrepareRecording that succeeded");
+
 	m_region = region;
 	m_currentPath = MakeOutputPath();
 
 	StopMonitoring();
 
-	m_state = EState::Starting;
 	m_status = "Waiting for permission…";
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CRecorder::RequestCapture()
 {
+	TGE_ASSERT(m_state == EState::Starting, "RequestCapture comes only after a PrepareRecording that succeeded");
+
 	SRecordingRequest request;
 	request.outputPath = m_currentPath;
 	request.codec = m_settings.codec;
@@ -532,7 +545,7 @@ void CRecorder::RefreshCodecs()
 //////////////////////////////////////////////////////////////////////////
 void CRecorder::RefreshMonitoring()
 {
-	bool const canMonitor{ m_visible && !IsEncoding() };
+	bool const canMonitor{ m_visible && m_state == EState::Idle };
 
 	for (size_t index{ 0 }; index < NumAudioSources; ++index)
 	{
@@ -557,7 +570,7 @@ void CRecorder::RefreshMonitoring()
 
 	bool const idle{ std::ranges::all_of(m_monitored, [](std::string const& node) { return node.empty(); }) };
 
-	if (idle && !IsEncoding())
+	if (idle && m_state != EState::Recording)
 	{
 		m_meterDeadline.reset();
 	}
@@ -606,7 +619,7 @@ void CRecorder::OnMeterTick(TimePoint now)
 {
 	// While recording the session owns the devices, so the meters read what is being written rather than a
 	// preview that is no longer open.
-	bool const recording{ IsEncoding() };
+	bool const recording{ m_state == EState::Recording };
 
 	if (recording || !m_monitored[Index(EAudioSource::System)].empty())
 	{
