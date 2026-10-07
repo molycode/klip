@@ -80,6 +80,7 @@ add_subdirectory(external/tge-core EXCLUDE_FROM_ALL)
 add_subdirectory(src/bus)
 add_subdirectory(src/capture)
 add_subdirectory(src/encode)
+add_subdirectory(src/desktop)
 add_subdirectory(src/app)
 
 if(KLIP_BUILD_TESTS)

@@ -14,14 +14,8 @@ add_executable(Klip
 	private/single_instance.cpp
 	private/session.hpp
 	private/session.cpp
-	private/tray_adaptor.hpp
-	private/tray_adaptor.cpp
-	private/tray_icon.hpp
-	private/tray_icon.cpp
-	private/tray_menu.hpp
-	private/tray_menu.cpp
-	private/tray_types.hpp
-	private/tray_types.cpp
+	private/tray_image.hpp
+	private/tray_image.cpp
 )
 
 set_target_properties(Klip PROPERTIES AUTOMOC ON)
@@ -35,6 +29,7 @@ target_compile_definitions(Klip PRIVATE KLIP_VERSION="${PROJECT_VERSION}")
 target_link_libraries(Klip PRIVATE
 	KlipBus
 	KlipCapture
+	KlipDesktop
 	KlipEncode
 	TgeInit
 	Tge::Profiling
@@ -42,7 +37,6 @@ target_link_libraries(Klip PRIVATE
 	TgeThreading
 	Qt6::Widgets
 	Qt6::Network
-	Qt6::DBus
 )
 
 KlipApplyCompileFlags(Klip)

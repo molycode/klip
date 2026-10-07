@@ -85,8 +85,7 @@ int AppendOptions(sd_bus_message* pMessage, std::vector<SOption> const& options)
 
 		if (result >= 0)
 		{
-			result = std::visit([pMessage](auto const& value) { return AppendVariant(pMessage, value); },
-			                    option.value);
+			result = AppendValue(pMessage, option);
 		}
 
 		if (result >= 0)
@@ -101,6 +100,12 @@ int AppendOptions(sd_bus_message* pMessage, std::vector<SOption> const& options)
 	}
 
 	return result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+int AppendValue(sd_bus_message* pMessage, SOption const& option)
+{
+	return std::visit([pMessage](auto const& value) { return AppendVariant(pMessage, value); }, option.value);
 }
 
 //////////////////////////////////////////////////////////////////////////

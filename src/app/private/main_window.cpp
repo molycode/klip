@@ -4,7 +4,7 @@
 #include "level_meter.hpp"
 #include "log.hpp"
 #include "region_selector.hpp"
-#include "tray_icon.hpp"
+#include "tray_image.hpp"
 
 #include <encode/capabilities.hpp>
 
@@ -490,12 +490,7 @@ bool CMainWindow::Initialize()
 	m_pTimer->setInterval(TickMilliseconds);
 	connect(m_pTimer, &QTimer::timeout, this, &CMainWindow::OnTick);
 
-	m_pTray = new CTrayIcon(this);
-	m_pTray->Initialize();
-
-	connect(m_pTray, &CTrayIcon::ToggleRequested, this, &CMainWindow::OnRecordPressed);
-	connect(m_pTray, &CTrayIcon::ShowRequested, this, &CMainWindow::Reveal);
-	connect(m_pTray, &CTrayIcon::QuitRequested, qApp, &QApplication::quit);
+	m_tray.Initialize(DrawTrayIcons(), [this](Desktop::SRequest const& request) { Request(request); });
 
 	m_session.SetEndedCallback([this]() {
 		// Arrives on the PipeWire or the bus thread; the widgets are the UI thread's.
@@ -517,10 +512,7 @@ void CMainWindow::Terminate()
 
 	StopMonitoring();
 
-	if (m_pTray != nullptr)
-	{
-		m_pTray->Terminate();
-	}
+	m_tray.Terminate();
 
 	m_session.Terminate();
 	m_audioDevices.Terminate();
@@ -1059,7 +1051,7 @@ void CMainWindow::StartRecording()
 		SetInputsEnabled(false);
 
 		// Out of shot before the stream opens; hiding once it runs films the window fading out.
-		if (isVisible() && m_pTray->IsAvailable())
+		if (isVisible() && m_tray.IsAvailable())
 		{
 			hide();
 			SettleAfterHiding();
@@ -1121,7 +1113,7 @@ void CMainWindow::StartRecording()
 				m_pTimer->start();
 				m_pRecord->setText(tr("Stop"));
 				m_pStatus->setText(tr("Recording"));
-				m_pTray->SetRecording(true);
+				m_tray.SetRecording(true);
 
 				RefreshMonitoring();
 			}
@@ -1226,10 +1218,7 @@ void CMainWindow::ShowIdleState(QString const& message)
 	m_pStatus->setText(message);
 	SetInputsEnabled(true);
 
-	if (m_pTray != nullptr)
-	{
-		m_pTray->SetRecording(false);
-	}
+	m_tray.SetRecording(false);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1238,6 +1227,47 @@ void CMainWindow::Reveal()
 	showNormal();
 	raise();
 	activateWindow();
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CMainWindow::Request(Desktop::SRequest const& request)
+{
+	// The request crosses through the queue; the wake carries nothing.
+	m_requests.Enqueue(request);
+	QMetaObject::invokeMethod(this, [this]() { OnDesktopRequests(); }, Qt::QueuedConnection);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CMainWindow::OnDesktopRequests()
+{
+	Desktop::SRequest request;
+	bool quitting{ false };
+
+	// Nothing after a Quit: a Toggle behind it would open a portal request on the way out.
+	while (!quitting && m_requests.Dequeue(request))
+	{
+		switch (request.kind)
+		{
+			case Desktop::ERequest::ActivationToken:
+				// The compositor refuses a raise it did not sanction, and Qt's Wayland plugin looks here for
+				// the token that sanctions this one.
+				qputenv("XDG_ACTIVATION_TOKEN", QByteArray::fromStdString(request.token));
+				break;
+
+			case Desktop::ERequest::Show:
+				Reveal();
+				break;
+
+			case Desktop::ERequest::Toggle:
+				OnRecordPressed();
+				break;
+
+			case Desktop::ERequest::Quit:
+				quitting = true;
+				qApp->quit();
+				break;
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1282,14 +1312,14 @@ void CMainWindow::OnTick()
 
 	m_pElapsed->setText(elapsed);
 	m_pStatus->setText(detail);
-	m_pTray->SetLabel(label);
-	m_pTray->SetDetail(QStringLiteral("%1 \u00b7 %2").arg(elapsed, detail));
+	m_tray.SetLabel(label.toStdString());
+	m_tray.SetDetail(QStringLiteral("%1 \u00b7 %2").arg(elapsed, detail).toStdString());
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CMainWindow::closeEvent(QCloseEvent* pEvent)
 {
-	if (m_pTray != nullptr && m_pTray->IsAvailable())
+	if (m_tray.IsAvailable())
 	{
 		hide();
 		pEvent->ignore();

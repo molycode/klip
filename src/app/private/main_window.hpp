@@ -1,11 +1,14 @@
 #pragma once
 
+#include "desktop/request.hpp"
+#include "desktop/tray.hpp"
 #include "session.hpp"
 
 #include <capture/audio_devices.hpp>
 #include <capture/audio_stream.hpp>
 
 #include <tge/non_copyable.hpp>
+#include <tge/threading/mpsc_queue.hpp>
 
 #include <QtCore/QElapsedTimer>
 #include <QtCore/QString>
@@ -23,7 +26,6 @@ class QTimer;
 namespace Klip
 {
 class CLevelMeter;
-class CTrayIcon;
 
 class CMainWindow final : public QWidget, private Tge::SNoCopyNoMove
 {
@@ -36,6 +38,9 @@ public:
 
 	bool Initialize();
 	void Terminate();
+
+	// From any thread: the tray and a second Klip ask through here.
+	void Request(Desktop::SRequest const& request);
 
 public Q_SLOTS:
 
@@ -57,6 +62,7 @@ private Q_SLOTS:
 	void OnOpenPressed();
 	void OnTick();
 	void OnCaptureWithdrawn();
+	void OnDesktopRequests();
 	void OnMeterTick();
 	void OnAudioSourceToggled();
 	void OnGainChanged();
@@ -112,8 +118,11 @@ private:
 	Encode::EQuality   CurrentQuality() const;
 	uint32_t           CurrentMaxFrameRate() const;
 
-	CSession    m_session;
-	CTrayIcon*  m_pTray{ nullptr };
+	CSession      m_session;
+	Desktop::CTray m_tray;
+
+	Tge::Threading::CMpscQueue<Desktop::SRequest> m_requests;
+
 	QComboBox*  m_pSource{ nullptr };
 	QLineEdit*  m_pDirectory{ nullptr };
 	QPushButton* m_pBrowse{ nullptr };

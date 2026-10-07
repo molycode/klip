@@ -35,6 +35,9 @@ std::string GetRequestPath(sd_bus* pBus, std::string_view token);
 // As one a{sv}.
 int AppendOptions(sd_bus_message* pMessage, std::vector<SOption> const& options);
 
+// One option's value alone, as a variant.
+int AppendValue(sd_bus_message* pMessage, SOption const& option);
+
 // The visitor reads the variant of each key it wants and answers true; every other entry is skipped.
 using DictVisitor = std::function<bool(std::string_view key, sd_bus_message* pMessage)>;
 
