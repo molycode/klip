@@ -159,8 +159,8 @@ says it wrote. A zero-frame MP4 is a valid MP4, so a run that did not crash prov
 python3 scripts/smoke_test.py --seconds 5
 ```
 
-It films the whole desktop, needs a screen cast grant the first time it runs, and needs `python3-gi` with
-the Atspi typelib. The recording lands in a temporary directory and is deleted unless a gate fails.
+It films the whole desktop, needs a screen cast grant the first time it runs, and needs `gdbus` and
+`python3-gi`. The recording lands in a temporary directory and is deleted unless a gate fails.
 
 ## Layout
 

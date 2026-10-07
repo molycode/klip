@@ -33,7 +33,7 @@ and TSan watches the bus thread hand each answer over.
 python3 scripts/smoke_test.py --seconds 15
 ```
 
-Launches Klip, presses Record over AT-SPI, records, stops through the tray, and gates the file with
+Launches Klip, starts and stops it through its tray item on the session bus, and gates the file with
 `ffprobe`: codec, dimensions against what Klip's own log claims, duration, packet count, the audio track,
 and a decode on the card. Point it at binaries with `--ffprobe` / `--ffmpeg`, or `$KLIP_FFPROBE` /
 `$KLIP_FFMPEG`, since a distribution FFmpeg may not decode what Klip writes.

@@ -9,9 +9,9 @@
 # temporary directory and are deleted unless a gate fails or --keep is given.
 #
 # Needs a screen cast grant -- the screen source keeps its restore token, so the portal picker appears
-# only the first time -- python3-gi with the Atspi typelib, and ffprobe, from --ffprobe, $KLIP_FFPROBE or
-# PATH. ffmpeg, found the same way, adds the decode and content checks on the card; without it both are
-# skipped.
+# only the first time -- gdbus to start and stop it through the tray, python3-gi for the portal screenshot
+# the picture is held to, and ffprobe, from --ffprobe, $KLIP_FFPROBE or PATH. ffmpeg, found the same way,
+# adds the decode and content checks on the card; without it both are skipped.
 
 import argparse
 import json
@@ -128,56 +128,9 @@ def remove_conf_key(path, section, key):
 	path.write_text("\n".join(out) + "\n")
 
 
-def find_button(atspi, node, label):
-	"""Depth first, because the button is a leaf of the window that is a leaf of the application."""
-	if node.get_role() == atspi.Role.PUSH_BUTTON and node.get_name() == label:
-		return node
-
-	for index in range(node.get_child_count()):
-		child = node.get_child_at_index(index)
-		hit = find_button(atspi, child, label) if child is not None else None
-
-		if hit is not None:
-			return hit
-
-	return None
-
-
-def press_record(process, timeout):
-	import gi
-
-	gi.require_version("Atspi", "2.0")
-	from gi.repository import Atspi
-
-	Atspi.init()
-	deadline = time.monotonic() + timeout
-
-	while time.monotonic() < deadline and process.poll() is None:
-		desktop = Atspi.get_desktop(0)
-
-		for index in range(desktop.get_child_count()):
-			app = desktop.get_child_at_index(index)
-
-			try:
-				mine = app is not None and app.get_process_id() == process.pid
-			except Exception:
-				mine = False
-
-			if mine:
-				button = find_button(Atspi, app, "Record")
-
-				if button is not None:
-					Atspi.Action.do_action(button, 0)
-
-					return True
-
-		time.sleep(0.25)
-
-	return False
-
-
-def stop_via_tray(pid):
-	"""Not through AT-SPI: the window is hidden while recording, which takes its tree with it."""
+def toggle_via_tray(pid):
+	"""A middle click on Klip's tray item, which starts a recording or stops one. The window is hidden while
+	recording, so this is the one control that reaches Klip either way."""
 	service = f"org.kde.StatusNotifierItem-{pid}-1"
 	call = subprocess.run(["gdbus", "call", "--session", "--dest", service, "--object-path",
 	                       "/StatusNotifierItem", "--method",
@@ -185,6 +138,25 @@ def stop_via_tray(pid):
 	                      capture_output=True, text=True)
 
 	return call.returncode == 0
+
+
+def start_via_tray(process, timeout):
+	"""Waits for the tray item to be on the bus, then toggles once. Never twice: a retry that crossed a
+	slow answer would stop the recording it had just started."""
+	service = f"org.kde.StatusNotifierItem-{process.pid}-1"
+	deadline = time.monotonic() + timeout
+	present = False
+
+	while not present and time.monotonic() < deadline and process.poll() is None:
+		call = subprocess.run(["gdbus", "call", "--session", "--dest", "org.freedesktop.DBus", "--object-path",
+		                       "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.NameHasOwner", service],
+		                      capture_output=True, text=True)
+		present = call.returncode == 0 and "true" in call.stdout
+
+		if not present:
+			time.sleep(0.25)
+
+	return present and toggle_via_tray(process.pid)
 
 
 def quit_via_tray(pid):
@@ -572,15 +544,13 @@ def run(args):
 	ending = None
 
 	try:
-		process = subprocess.Popen([str(klip)], cwd=REPO,
-		                           env={**os.environ, "QT_LINUX_ACCESSIBILITY_ALWAYS_ON": "1"},
-		                           stdout=output, stderr=subprocess.STDOUT)
+		process = subprocess.Popen([str(klip)], cwd=REPO, stdout=output, stderr=subprocess.STDOUT)
 
-		if not press_record(process, args.start_timeout):
+		if not start_via_tray(process, args.start_timeout):
 			if process.poll() is not None:
 				print("Klip exited at once: another instance already has the tray", file=sys.stderr)
 			else:
-				print("never found Klip's Record button over AT-SPI", file=sys.stderr)
+				print("never reached Klip's tray item on the session bus", file=sys.stderr)
 
 			return 1
 
@@ -603,7 +573,7 @@ def run(args):
 
 		time.sleep(max(0.0, args.seconds - (time.monotonic() - appeared)))
 
-		if not stop_via_tray(process.pid):
+		if not toggle_via_tray(process.pid):
 			print("the tray would not take SecondaryActivate; the recording is still running",
 			      file=sys.stderr)
 
