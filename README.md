@@ -166,6 +166,7 @@ It films the whole desktop, needs a screen cast grant the first time it runs, an
 
 ```
 src/app/            the executable and its UI
+src/recorder/       what the UI shows and does, without the UI: settings, meters, the recording session
 src/bus/            the session bus connection, on a thread of its own
 src/desktop/        the tray and single instance, served on that bus
 src/capture/        the portal session and the PipeWire streams

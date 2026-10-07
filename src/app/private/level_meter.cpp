@@ -1,24 +1,18 @@
 #include "level_meter.hpp"
 
+#include "recorder/decibels.hpp"
+#include "recorder/level_ballistics.hpp"
+
 #include <QtGui/QFontMetrics>
 #include <QtGui/QLinearGradient>
 #include <QtGui/QPainter>
 
 #include <algorithm>
-#include <cmath>
 
 namespace Klip
 {
 namespace
 {
-constexpr float FloorDecibels{ -60.0f };
-
-constexpr int   HoldMilliseconds{ 1500 };
-constexpr float HoldFallPerSecond{ 20.0f };
-constexpr float LevelFallPerSecond{ 60.0f };
-
-constexpr int ClipMilliseconds{ 3000 };
-
 constexpr int BarHeight{ 10 };
 constexpr int BarSpacing{ 4 };
 constexpr int LabelWidth{ 14 };
@@ -30,21 +24,11 @@ constexpr float    TickStepDecibels{ 6.0f };
 constexpr uint32_t NumTicks{ 10 };
 constexpr uint32_t LabelEveryNthTick{ 2 };
 
-float ToDecibels(float level)
-{
-	return level > 0.0f ? 20.0f * std::log10(level) : FloorDecibels;
-}
-
-float FromDecibels(float decibels)
-{
-	return decibels <= FloorDecibels ? 0.0f : std::pow(10.0f, decibels / 20.0f);
-}
-
 float ToPosition(float level)
 {
-	float const decibels{ std::clamp(ToDecibels(level), FloorDecibels, 0.0f) };
+	float const decibels{ std::clamp(Recorder::ToDecibels(level), Recorder::FloorDecibels, 0.0f) };
 
-	return 1.0f - decibels / FloorDecibels;
+	return 1.0f - decibels / Recorder::FloorDecibels;
 }
 
 QFont ScaleFont(QFont const& base)
@@ -71,9 +55,9 @@ void DrawScale(QPainter& painter, QRect const& bar, int top)
 
 	for (uint32_t step{ 0 }; step <= NumTicks; ++step)
 	{
-		float const decibels{ FloorDecibels + static_cast<float>(step) * TickStepDecibels };
+		float const decibels{ Recorder::FloorDecibels + static_cast<float>(step) * TickStepDecibels };
 		int const   x{ bar.left() + static_cast<int>(static_cast<float>(bar.width() - 1) *
-		                                            (1.0f - decibels / FloorDecibels)) };
+		                                            (1.0f - decibels / Recorder::FloorDecibels)) };
 
 		painter.drawLine(x, top + ScaleGap, x, top + ScaleGap + TickHeight);
 
@@ -134,67 +118,9 @@ void CLevelMeter::SetChannelCount(uint32_t numChannels)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CLevelMeter::SetPeaks(float const* pPeaks, uint32_t numChannels)
+void CLevelMeter::SetBallistics(Recorder::CLevelBallistics const* pBallistics)
 {
-	uint32_t const channels{ std::min(numChannels, m_numChannels) };
-
-	for (uint32_t index{ 0 }; index < channels; ++index)
-	{
-		SChannel&   channel{ m_channels[index] };
-		float const peak{ pPeaks != nullptr ? pPeaks[index] : 0.0f };
-
-		// Buffers arrive in bursts, so a bar driven straight off the last one flickers and reads low.
-		float const elapsed{ channel.fallingSince.isValid()
-			                     ? static_cast<float>(channel.fallingSince.elapsed()) / 1000.0f
-			                     : 0.0f };
-		float const fallen{ FromDecibels(ToDecibels(channel.level) - LevelFallPerSecond * elapsed) };
-
-		channel.level = std::max(peak, fallen);
-		channel.fallingSince.restart();
-
-		if (peak >= 1.0f)
-		{
-			channel.clipped = true;
-			channel.clippedSince.restart();
-		}
-		else if (channel.clipped && channel.clippedSince.elapsed() > ClipMilliseconds)
-		{
-			channel.clipped = false;
-		}
-
-		if (peak >= channel.hold || !channel.heldSince.isValid())
-		{
-			channel.hold = peak;
-			channel.heldSince.restart();
-		}
-		else if (channel.heldSince.elapsed() > HoldMilliseconds)
-		{
-			float const holding{ static_cast<float>(channel.heldSince.elapsed() - HoldMilliseconds) /
-				                 1000.0f };
-
-			channel.hold = std::max(peak, FromDecibels(ToDecibels(channel.hold) -
-			                                           HoldFallPerSecond * holding));
-		}
-	}
-
-	update();
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CLevelMeter::Reset()
-{
-	for (SChannel& channel : m_channels)
-	{
-		channel = SChannel{};
-	}
-
-	update();
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CLevelMeter::SetUnavailable(bool unavailable)
-{
-	m_unavailable = unavailable;
+	m_pBallistics = pBallistics;
 
 	update();
 }
@@ -217,7 +143,7 @@ void CLevelMeter::paintEvent(QPaintEvent* pEvent)
 	labelFont.setPointSizeF(labelFont.pointSizeF() - 1.0);
 	painter.setFont(labelFont);
 
-	if (m_unavailable)
+	if (m_pBallistics != nullptr && m_pBallistics->IsUnavailable())
 	{
 		painter.setPen(QColor{ 222, 120, 100 });
 		painter.drawText(rect(), Qt::AlignLeft | Qt::AlignVCenter,
@@ -227,7 +153,9 @@ void CLevelMeter::paintEvent(QPaintEvent* pEvent)
 	{
 		for (uint32_t index{ 0 }; index < m_numChannels; ++index)
 		{
-			SChannel const& channel{ m_channels[index] };
+			float const level{ m_pBallistics != nullptr ? m_pBallistics->GetLevel(index) : 0.0f };
+			float const hold{ m_pBallistics != nullptr ? m_pBallistics->GetHold(index) : 0.0f };
+			bool const  clipped{ m_pBallistics != nullptr && m_pBallistics->IsClipped(index) };
 
 			int const   top{ static_cast<int>(index) * (BarHeight + BarSpacing) };
 			QRect const bar{ LabelWidth, top, width() - LabelWidth, BarHeight };
@@ -243,7 +171,7 @@ void CLevelMeter::paintEvent(QPaintEvent* pEvent)
 
 			QLinearGradient const gradient{ MakeGradient(bar) };
 
-			int const filled{ static_cast<int>(static_cast<float>(bar.width()) * ToPosition(channel.level)) };
+			int const filled{ static_cast<int>(static_cast<float>(bar.width()) * ToPosition(level)) };
 
 			if (filled > 0)
 			{
@@ -252,7 +180,7 @@ void CLevelMeter::paintEvent(QPaintEvent* pEvent)
 			}
 
 			int const marker{ std::min(static_cast<int>(static_cast<float>(bar.width()) *
-			                                           ToPosition(channel.hold)),
+			                                           ToPosition(hold)),
 			                           bar.width() - MarkerWidth) };
 
 			// Only while it is ahead of the bar: a steady signal holds its own peak, and a marker
@@ -263,7 +191,7 @@ void CLevelMeter::paintEvent(QPaintEvent* pEvent)
 				painter.drawRect(QRect{ bar.left() + marker, bar.top(), MarkerWidth, bar.height() });
 			}
 
-			if (channel.clipped)
+			if (clipped)
 			{
 				painter.setBrush(QColor{ 240, 60, 50 });
 				painter.drawRect(QRect{ bar.right() - MarkerWidth, bar.top(), MarkerWidth,

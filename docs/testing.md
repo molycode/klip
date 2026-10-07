@@ -18,7 +18,9 @@ ctest --test-dir build/gcc-Debug --output-on-failure
 `KLIP_BUILD_TESTS` builds `KlipTests` from the googletest submodule; the Debug and sanitizer presets turn
 it on, and a user's build never does. ctest runs it under `dbus-run-session` with `tests/dbus-session.conf`,
 a session bus of its own with no service directories, so a test that asks for the desktop portal gets the
-suite's fake or nothing -- never the real one started on demand. Run it under the `asanubsan` and `tsan`
+suite's fake or nothing -- never the real one started on demand. It also points `PIPEWIRE_REMOTE` at a
+socket that does not exist, so the audio device lists are empty on every machine instead of whatever this
+one has plugged in; the recorder's tests are written against that. Run it under the `asanubsan` and `tsan`
 presets as well as Debug: UBSan is set to halt there, so a finding fails the suite rather than scrolling
 past.
 

@@ -2,14 +2,17 @@
 
 #include <tge/non_copyable.hpp>
 
-#include <QtCore/QElapsedTimer>
 #include <QtWidgets/QWidget>
 
-#include <array>
 #include <cstdint>
 
 namespace Klip
 {
+namespace Recorder
+{
+class CLevelBallistics;
+} // namespace Recorder
+
 class CLevelMeter final : public QWidget, private Tge::SNoCopyNoMove
 {
 	Q_OBJECT
@@ -21,11 +24,8 @@ public:
 
 	void SetChannelCount(uint32_t numChannels);
 
-	void SetPeaks(float const* pPeaks, uint32_t numChannels);
-
-	void Reset();
-
-	void SetUnavailable(bool unavailable);
+	// Painted as it is at each repaint; the recorder moves it.
+	void SetBallistics(Recorder::CLevelBallistics const* pBallistics);
 
 	QSize sizeHint() const override;
 
@@ -37,20 +37,8 @@ private:
 
 	static constexpr uint32_t MaxChannels{ 2 };
 
-	struct SChannel final
-	{
-		float         level{ 0.0f };
-		float         hold{ 0.0f };
-		QElapsedTimer heldSince;
-		QElapsedTimer fallingSince;
-		QElapsedTimer clippedSince;
-		bool          clipped{ false };
-	};
-
-	std::array<SChannel, MaxChannels> m_channels;
+	Recorder::CLevelBallistics const* m_pBallistics{ nullptr };
 
 	uint32_t m_numChannels{ 0 };
-
-	bool m_unavailable{ false };
 };
 } // namespace Klip

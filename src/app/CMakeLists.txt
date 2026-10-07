@@ -10,6 +10,8 @@ add_executable(Klip
 	private/region_selector.cpp
 	private/screenshot.hpp
 	private/screenshot.cpp
+	private/settings_store.hpp
+	private/settings_store.cpp
 	private/tray_image.hpp
 	private/tray_image.cpp
 )

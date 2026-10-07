@@ -20,6 +20,9 @@ add_executable(KlipTests
 	desktop/fake_panel.cpp
 	desktop/test_single_instance.cpp
 	desktop/test_tray.cpp
+	recorder/test_format.cpp
+	recorder/test_level_ballistics.cpp
+	recorder/test_recorder.cpp
 )
 
 target_include_directories(KlipTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -28,6 +31,7 @@ target_link_libraries(KlipTests PRIVATE
 	KlipBus
 	KlipCapture
 	KlipDesktop
+	KlipRecorder
 	TgeInit
 	TgeLogging
 	Tge::Testing
@@ -40,5 +44,8 @@ add_test(NAME KlipTests
 	COMMAND ${KLIP_DBUS_RUN_SESSION} --config-file=${CMAKE_CURRENT_SOURCE_DIR}/dbus-session.conf --
 	        $<TARGET_FILE:KlipTests>)
 
-# A finding fails the suite, rather than scrolling past in its output.
-set_tests_properties(KlipTests PROPERTIES ENVIRONMENT "UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1")
+# A finding fails the suite, rather than scrolling past in its output. No PipeWire: the device lists stay empty
+# instead of being whatever the machine running the suite has plugged in. And its modules stay loaded, or LSan
+# reports what their globals held as leaked once they are unloaded.
+set_tests_properties(KlipTests PROPERTIES ENVIRONMENT
+	"UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1;PIPEWIRE_REMOTE=klip-tests-no-such-remote;PIPEWIRE_DLCLOSE=false")

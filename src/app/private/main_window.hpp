@@ -1,18 +1,18 @@
 #pragma once
 
 #include "desktop/request.hpp"
-#include "desktop/tray.hpp"
-#include "recorder/session.hpp"
-
-#include <capture/audio_devices.hpp>
-#include <capture/audio_stream.hpp>
+#include "encode/settings.hpp"
+#include "recorder/audio_source.hpp"
+#include "recorder/recorder.hpp"
 
 #include <tge/non_copyable.hpp>
 #include <tge/threading/mpsc_queue.hpp>
 
-#include <QtCore/QElapsedTimer>
 #include <QtCore/QString>
 #include <QtWidgets/QWidget>
+
+#include <functional>
+#include <optional>
 
 class QCheckBox;
 class QComboBox;
@@ -46,8 +46,6 @@ public Q_SLOTS:
 
 	void Reveal();
 
-public:
-
 protected:
 
 	void closeEvent(QCloseEvent* pEvent) override;
@@ -57,114 +55,62 @@ protected:
 
 private Q_SLOTS:
 
-	void OnRecordPressed();
 	void OnBrowsePressed();
 	void OnOpenPressed();
-	void OnTick();
-	void OnCaptureWithdrawn();
+	void OnRecorderUpdate();
 	void OnDesktopRequests();
-	void OnMeterTick();
-	void OnAudioSourceToggled();
-	void OnGainChanged();
 
 private:
 
+	struct SAudioWidgets final
+	{
+		QCheckBox*   pEnabled{ nullptr };
+		QComboBox*   pDevice{ nullptr };
+		QSlider*     pGain{ nullptr };
+		QLabel*      pGainValue{ nullptr };
+		CLevelMeter* pMeter{ nullptr };
+	};
+
 	void BuildLayout();
-
-	void ConnectSettingSaves();
-	void SaveSettings() const;
 	void BuildAudioGroup();
-	void RefreshCodecs();
-	void RefreshSourceOptions();
-	void RefreshAudioDevices();
-	void RefreshAudioAvailability();
-	void RefreshMonitoring();
-	void UpdateQualityHint();
-	void UpdateAudioQualityHint();
-	void StopMonitoring();
-	void StartRecording();
-	void StopRecording();
-	void ShowIdleState(QString const& message);
-	void SetInputsEnabled(bool enabled);
+	void ConnectInputs();
 
-	// The meters are outputs, so they are deliberately not part of the set a recording disables.
-	void SetAudioInputsEnabled(bool enabled);
-	void RefreshMeterVisibility();
-	void UpdateMeter(CLevelMeter& meter, Capture::CAudioStream const& stream, uint64_t& numBuffers,
-	                 float gain);
+	// Every change goes through here, so the widgets, Klip.conf and the timer follow whatever it did.
+	void Apply(std::function<void()> const& action);
+	void AfterChange();
+	void Sync();
+	bool SyncAudio(Recorder::EAudioSource source, bool idle, bool carries);
+	void FitHeight();
+	void ArmDeadline();
 
-	float SystemGain() const;
-	float MicrophoneGain() const;
-
-	bool ChooseRegion();
+	void ToggleRecording();
+	std::optional<Encode::SRegion> ChooseRegion();
 	void ShowInFileManager(QString const& filePath);
 
-	QString OutputDirectory() const;
-	QString MakeOutputPath() const;
+	SAudioWidgets& GetAudioWidgets(Recorder::EAudioSource source);
 
-	QString ContainerLabel(Encode::EContainer container) const;
-	QString CodecLabel(Encode::ECodec codec) const;
-	QString QualityLabel(Encode::EQuality quality) const;
-
-	bool WantsSystemAudio() const;
-	bool WantsMicrophone() const;
-
-	Capture::SAudioDevice CurrentSystemDevice() const;
-	Capture::SAudioDevice CurrentMicrophoneDevice() const;
-	Encode::EQuality      CurrentAudioQuality() const;
-
-	Encode::EContainer CurrentContainer() const;
-	Encode::ECodec     CurrentCodec() const;
-	Encode::EQuality   CurrentQuality() const;
-	uint32_t           CurrentMaxFrameRate() const;
-
-	Recorder::CSession m_session;
-	Desktop::CTray     m_tray;
+	Recorder::CRecorder m_recorder;
 
 	Tge::Threading::CMpscQueue<Desktop::SRequest> m_requests;
 
-	QComboBox*  m_pSource{ nullptr };
-	QLineEdit*  m_pDirectory{ nullptr };
-	QPushButton* m_pBrowse{ nullptr };
-	QPushButton* m_pOpen{ nullptr };
-	QComboBox*  m_pContainer{ nullptr };
-	QComboBox*  m_pCodec{ nullptr };
-	QComboBox*  m_pFrameRate{ nullptr };
-	QComboBox*  m_pQuality{ nullptr };
-	QLabel*     m_pQualityHint{ nullptr };
-	QGroupBox*  m_pAudioGroup{ nullptr };
-	QCheckBox*  m_pRememberWindow{ nullptr };
-	QCheckBox*  m_pSystemEnabled{ nullptr };
-	QComboBox*  m_pSystemDevice{ nullptr };
-	QCheckBox*  m_pMicrophoneEnabled{ nullptr };
-	QComboBox*  m_pMicrophoneDevice{ nullptr };
-	QSlider*    m_pSystemGain{ nullptr };
-	QLabel*     m_pSystemGainValue{ nullptr };
-	QSlider*    m_pMicrophoneGain{ nullptr };
-	QLabel*     m_pMicrophoneGainValue{ nullptr };
-	QComboBox*  m_pAudioQuality{ nullptr };
-	QLabel*     m_pAudioQualityHint{ nullptr };
-	CLevelMeter* m_pSystemMeter{ nullptr };
-	CLevelMeter* m_pMicrophoneMeter{ nullptr };
-	QTimer*     m_pMeterTimer{ nullptr };
-	QPushButton* m_pRecord{ nullptr };
-	QLabel*     m_pElapsed{ nullptr };
-	QLabel*     m_pStatus{ nullptr };
-	QTimer*     m_pTimer{ nullptr };
-
-	Capture::CAudioDevices m_audioDevices;
-	Capture::CAudioStream  m_systemMonitor;
-	Capture::CAudioStream  m_microphoneMonitor;
-
-	QString m_systemMonitored;
-	QString m_microphoneMonitored;
-
-	uint64_t m_numSystemBuffers{ 0 };
-	uint64_t m_numMicrophoneBuffers{ 0 };
-
-	QElapsedTimer m_clock;
-	qint64        m_firstByteMs{ -1 };
-	QString         m_currentPath;
-	Encode::SRegion m_region;
+	QComboBox*    m_pSource{ nullptr };
+	QLineEdit*    m_pDirectory{ nullptr };
+	QPushButton*  m_pBrowse{ nullptr };
+	QPushButton*  m_pOpen{ nullptr };
+	QComboBox*    m_pContainer{ nullptr };
+	QComboBox*    m_pCodec{ nullptr };
+	QComboBox*    m_pFrameRate{ nullptr };
+	QComboBox*    m_pQuality{ nullptr };
+	QLabel*       m_pQualityHint{ nullptr };
+	QGroupBox*    m_pAudioGroup{ nullptr };
+	QCheckBox*    m_pRememberWindow{ nullptr };
+	SAudioWidgets m_system;
+	SAudioWidgets m_microphone;
+	QComboBox*    m_pAudioQuality{ nullptr };
+	QLabel*       m_pAudioQualityHint{ nullptr };
+	QPushButton*  m_pRecord{ nullptr };
+	QLabel*       m_pElapsed{ nullptr };
+	QLabel*       m_pStatus{ nullptr };
+	QTimer*       m_pDeadline{ nullptr };
 };
 } // namespace Klip
