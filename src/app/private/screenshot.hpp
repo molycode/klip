@@ -3,36 +3,37 @@
 #include <tge/non_copyable.hpp>
 
 #include <QtCore/QObject>
-#include <QtCore/QString>
-#include <QtCore/QVariantMap>
 #include <QtGui/QImage>
+
+#include <string>
 
 class QEventLoop;
 class QRect;
 
+struct sd_bus_message;
+struct sd_bus_slot;
+
 namespace Klip
 {
+// A QObject only so the bus thread can wake the nested loop through Qt's queue.
 class CScreenshot final : public QObject, private Tge::SNoCopyNoMove
 {
-	Q_OBJECT
-
 public:
 
-	explicit CScreenshot(QObject* pParent = nullptr);
+	CScreenshot() = default;
 	~CScreenshot() override = default;
 
 	// Blocks on a nested event loop until the portal answers.
 	QImage Take(QRect const& area);
 
-private Q_SLOTS:
-
-	// uint, not uint32_t: QDBusConnection matches on the signature as written.
-	void OnResponse(uint response, QVariantMap const& results);
-
 private:
 
-	QString     m_requestPath;
-	QString     m_uri;
-	QEventLoop* m_pLoop{ nullptr };
+	void OnResponse(sd_bus_message* pMessage);
+
+	// Written on the bus thread, and read here only after the unsubscribe that ends Take.
+	std::string m_uri;
+
+	sd_bus_slot* m_pSlot{ nullptr };
+	QEventLoop*  m_pLoop{ nullptr };
 };
 } // namespace Klip

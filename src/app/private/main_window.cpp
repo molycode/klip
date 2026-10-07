@@ -1,5 +1,6 @@
 #include "main_window.hpp"
 
+#include "bus/connection.hpp"
 #include "level_meter.hpp"
 #include "log.hpp"
 #include "region_selector.hpp"
@@ -17,9 +18,6 @@
 #include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
 #include <QtCore/QUrl>
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusInterface>
-#include <QtDBus/QDBusMessage>
 #include <QtGui/QCloseEvent>
 #include <QtGui/QHideEvent>
 #include <QtGui/QShowEvent>
@@ -39,6 +37,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSlider>
 #include <QtWidgets/QVBoxLayout>
+#include <systemd/sd-bus.h>
 #include <tge/profiling/profiling.hpp>
 
 #include <cmath>
@@ -970,19 +969,15 @@ void CMainWindow::ShowInFileManager(QString const& filePath)
 
 	if (!filePath.isEmpty())
 	{
+		std::string const uri{ QUrl::fromLocalFile(filePath).toString().toStdString() };
+
 		// Selects the file rather than just opening the folder, where the desktop implements it.
-		QDBusInterface manager{ QStringLiteral("org.freedesktop.FileManager1"),
-			                    QStringLiteral("/org/freedesktop/FileManager1"),
-			                    QStringLiteral("org.freedesktop.FileManager1"),
-			                    QDBusConnection::sessionBus() };
-
-		if (manager.isValid())
-		{
-			QStringList const uris{ QUrl::fromLocalFile(filePath).toString() };
-			QDBusMessage const reply{ manager.call(QStringLiteral("ShowItems"), uris, QString{}) };
-
-			shown = reply.type() != QDBusMessage::ErrorMessage;
-		}
+		Bus::gConnection.Run([&uri, &shown](sd_bus* pBus) {
+			shown = sd_bus_call_method(pBus, "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1",
+			                           "org.freedesktop.FileManager1", "ShowItems", nullptr, nullptr, "ass", 1,
+			                           uri.c_str(), "")
+			        >= 0;
+		});
 	}
 
 	if (!shown && !QDesktopServices::openUrl(QUrl::fromLocalFile(m_pDirectory->text())))
