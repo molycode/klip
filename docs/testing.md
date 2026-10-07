@@ -6,7 +6,7 @@ run the application and then ask whether the file holds a recording -- and each 
 rather than a log.
 
 The runtime ones need a screen cast grant, so they belong to whoever is at the machine and none can
-gate CI. The last two need only a compiler.
+gate CI. The last three need only a compiler, and the floor Docker besides.
 
 ## The smoke test
 
@@ -91,21 +91,24 @@ one back on before arguing with it; none are off because their findings were ted
 This is the cheapest check and the only one that reads code which never runs -- the region path, the error
 branches, everything a given machine's hardware never reaches.
 
-## The compiler floor
+## The floor
 
 ```bash
-cmake -S . -B build/floor -G Ninja -DCMAKE_C_COMPILER=gcc-13 -DCMAKE_CXX_COMPILER=g++-13
-cmake --build build/floor
+scripts/floor_build.sh
 ```
 
 `CMakeLists.txt` refuses GCC below 13 and Clang below 18, and a floor is only real once something has been
-built at it. Both compilers, at Debug and Release: each diagnoses what the other misses, and `-Werror` is
-on, so a clean build is a result rather than an absence.
+built at it. The floor is Ubuntu 24.04 as a whole -- CMake 3.28, GCC 13, Clang 18, Qt 6.4.2 and FFmpeg
+6.1.1 -- so the script builds inside an `ubuntu:24.04` container rather than trusting whatever the host
+has moved on to. It installs exactly the README's `apt install` line, so a dependency missing from that
+line fails here and not on a reader's machine; then it runs `make` as the README says, and builds Debug and
+Release with both compilers. `-Werror` is on, so a clean build is a result rather than an absence. It needs
+Docker and nothing else from the host.
 
-Give the system compiler the system libstdc++ that sits beside it, which is what a user on a stock
-distribution has. Pairing a distribution Clang with a much newer GCC's libstdc++ instead fails in
-`bits/atomic_wait.h` on `__builtin_popcountg`, a builtin that Clang does not have -- that is the pairing's
-fault, and it reads exactly like a broken floor.
+Give a compiler the libstdc++ that sits beside it, which is what a user on a stock distribution has.
+Pairing a distribution Clang with a much newer GCC's libstdc++ instead fails in `bits/atomic_wait.h` on
+`__builtin_popcountg`, a builtin that Clang does not have -- that is the pairing's fault, and it reads
+exactly like a broken floor.
 
 ## The stock build
 
@@ -115,9 +118,10 @@ cmake -S /tmp/stock -B /tmp/stock/b -G Ninja && cmake --build /tmp/stock/b
 ```
 
 What a reader who downloaded the source actually does: a copy outside the checkout, no user presets, no
-toolchain file, nothing pointed at a prefix. It wants the distribution's own Qt and FFmpeg rather than a
-pinned build, because those are the versions `CMakeLists.txt` names as the floor -- on Ubuntu 24.04 that is
-Qt 6.4.2 and FFmpeg 6.1.1, against a development build's 6.10 and 8.1.
+toolchain file, nothing pointed at a prefix. On the host it builds against the newest distribution
+available, where the floor script builds against the oldest; both are needed, because a header the new
+one supplies transitively can be missing from the old one, and an API the old one offers can be gone from
+the new.
 
 Run the smoke test against the binary it produces, not only the build. Compiling proves the headers agree;
 it says nothing about whether that libavcodec still encodes what Klip asks it for.
@@ -125,7 +129,7 @@ it says nothing about whether that libavcodec still encodes what Klip asks it fo
 **A machine without the dependencies stops at `Qt6` and prints nothing further, which reads like a pass.**
 Check the build reached a binary before believing it. And a transitive include is invisible until it is
 absent: `qToBigEndian` compiled on every machine it was tried on, behind a header Qt 6.10 supplies and
-Qt 6.4 does not, until this gate ran.
+Qt 6.4 does not, until a build against Qt 6.4 ran.
 
 ## What none of them cover
 
