@@ -4,10 +4,11 @@ Open work. Each item states what is known, what is only predicted, and what woul
 
 ## Klip has only ever run on one machine
 
-Everything in this file was found on a single setup: GNOME Shell 46 on Wayland with Mutter and
-`xdg-desktop-portal-gnome`, an AMD Navi 32 discrete card beside a Raphael iGPU, and a 3840x2160 panel at
-133% scale that streams 2880x1620 and offers nothing above 60 Hz, on Ubuntu 24.04. Klip has never been
-started anywhere else, and that is worth knowing before any number below is trusted.
+Everything in this file was found on a single machine: an AMD Navi 32 discrete card beside a Raphael iGPU,
+and a 3840x2160 panel at 133% scale that streams 2880x1620 and offers nothing above 60 Hz, running GNOME on
+Wayland with Mutter and `xdg-desktop-portal-gnome` -- Shell 46 on Ubuntu 24.04 at first, Shell 50 on Ubuntu
+26.04 since. Klip has never been started anywhere else, and that is worth knowing before any number below is
+trusted.
 
 Most of it should carry, for a structural reason rather than a hopeful one: every capture goes through
 `xdg-desktop-portal`, so the compositor sits behind an interface instead of being compiled against. That is
