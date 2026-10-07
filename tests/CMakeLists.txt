@@ -13,6 +13,7 @@ add_executable(KlipTests
 	tge_environment.hpp
 	tge_environment.cpp
 	bus/test_connection.cpp
+	bus/test_file_uri.cpp
 	capture/fake_portal.hpp
 	capture/fake_portal.cpp
 	capture/test_portal_session.cpp
@@ -21,8 +22,11 @@ add_executable(KlipTests
 	config/test_klip_conf_import.cpp
 	config/test_settings_store.cpp
 	config/test_xdg_paths.cpp
+	desktop/fake_file_manager.hpp
+	desktop/fake_file_manager.cpp
 	desktop/fake_panel.hpp
 	desktop/fake_panel.cpp
+	desktop/test_file_manager.cpp
 	desktop/test_single_instance.cpp
 	desktop/test_tray.cpp
 	desktop/test_tray_icons.cpp

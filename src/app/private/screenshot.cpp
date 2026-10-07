@@ -1,6 +1,7 @@
 #include "screenshot.hpp"
 
 #include "bus/connection.hpp"
+#include "bus/file_uri.hpp"
 #include "bus/portal.hpp"
 #include "log.hpp"
 
@@ -9,7 +10,6 @@
 #include <QtCore/QMetaObject>
 #include <QtCore/QRect>
 #include <QtCore/QTimer>
-#include <QtCore/QUrl>
 #include <systemd/sd-bus.h>
 
 namespace Klip
@@ -99,7 +99,7 @@ QImage CScreenshot::Take(QRect const& area)
 	}
 	else if (sent)
 	{
-		QString const path{ QUrl{ QString::fromStdString(m_uri) }.toLocalFile() };
+		QString const path{ QString::fromStdString(Bus::ToLocalPath(m_uri)) };
 
 		if (!image.load(path))
 		{

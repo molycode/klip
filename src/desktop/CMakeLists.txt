@@ -1,8 +1,10 @@
 add_library(KlipDesktop STATIC
+	public/desktop/file_manager.hpp
 	public/desktop/request.hpp
 	public/desktop/single_instance.hpp
 	public/desktop/tray.hpp
 	public/desktop/tray_icons.hpp
+	private/file_manager.cpp
 	private/log.hpp
 	private/log.cpp
 	private/menu.hpp

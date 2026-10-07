@@ -13,8 +13,10 @@ endif()
 
 add_library(KlipBus STATIC
 	public/bus/connection.hpp
+	public/bus/file_uri.hpp
 	public/bus/portal.hpp
 	private/connection.cpp
+	private/file_uri.cpp
 	private/log.hpp
 	private/log.cpp
 	private/portal.cpp

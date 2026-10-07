@@ -1,7 +1,8 @@
 #include "main_window.hpp"
 
-#include "bus/connection.hpp"
+#include "bus/file_uri.hpp"
 #include "config/xdg_paths.hpp"
+#include "desktop/file_manager.hpp"
 #include "desktop/tray_icons.hpp"
 #include "level_meter.hpp"
 #include "log.hpp"
@@ -33,7 +34,6 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSlider>
 #include <QtWidgets/QVBoxLayout>
-#include <systemd/sd-bus.h>
 #include <tge/profiling/profiling.hpp>
 
 #include <algorithm>
@@ -650,20 +650,7 @@ void CMainWindow::OnBrowsePressed()
 //////////////////////////////////////////////////////////////////////////
 void CMainWindow::ShowInFileManager(QString const& filePath)
 {
-	bool shown{ false };
-
-	if (!filePath.isEmpty())
-	{
-		std::string const uri{ QUrl::fromLocalFile(filePath).toString().toStdString() };
-
-		// Selects the file rather than just opening the folder, where the desktop implements it.
-		Bus::gConnection.Run([&uri, &shown](sd_bus* pBus) {
-			shown = sd_bus_call_method(pBus, "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1",
-			                           "org.freedesktop.FileManager1", "ShowItems", nullptr, nullptr, "ass", 1,
-			                           uri.c_str(), "")
-			        >= 0;
-		});
-	}
+	bool const shown{ !filePath.isEmpty() && Desktop::ShowInFileManager(Bus::ToFileUri(filePath.toStdString())) };
 
 	std::string const& directory{ m_recorder.GetSettings().directory };
 
