@@ -1,4 +1,4 @@
-#include "session.hpp"
+#include "recorder/session.hpp"
 
 #include "log.hpp"
 
@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <utility>
 
-namespace Klip
+namespace Klip::Recorder
 {
 namespace
 {
@@ -465,4 +465,4 @@ SSessionStats CSession::GetStats() const
 
 	return stats;
 }
-} // namespace Klip
+} // namespace Klip::Recorder

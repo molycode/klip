@@ -2,7 +2,7 @@
 
 #include "desktop/request.hpp"
 #include "desktop/tray.hpp"
-#include "session.hpp"
+#include "recorder/session.hpp"
 
 #include <capture/audio_devices.hpp>
 #include <capture/audio_stream.hpp>
@@ -118,8 +118,8 @@ private:
 	Encode::EQuality   CurrentQuality() const;
 	uint32_t           CurrentMaxFrameRate() const;
 
-	CSession      m_session;
-	Desktop::CTray m_tray;
+	Recorder::CSession m_session;
+	Desktop::CTray     m_tray;
 
 	Tge::Threading::CMpscQueue<Desktop::SRequest> m_requests;
 

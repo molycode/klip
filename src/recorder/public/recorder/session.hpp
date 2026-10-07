@@ -17,7 +17,7 @@
 #include <thread>
 #include <vector>
 
-namespace Klip
+namespace Klip::Recorder
 {
 struct SRecordingRequest final
 {
@@ -154,4 +154,4 @@ private:
 
 	SSessionStats m_lastStats;
 };
-} // namespace Klip
+} // namespace Klip::Recorder

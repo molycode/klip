@@ -10,8 +10,6 @@ add_executable(Klip
 	private/region_selector.cpp
 	private/screenshot.hpp
 	private/screenshot.cpp
-	private/session.hpp
-	private/session.cpp
 	private/tray_image.hpp
 	private/tray_image.cpp
 )
@@ -29,6 +27,7 @@ target_link_libraries(Klip PRIVATE
 	KlipCapture
 	KlipDesktop
 	KlipEncode
+	KlipRecorder
 	TgeInit
 	Tge::Profiling
 	TgeLogging

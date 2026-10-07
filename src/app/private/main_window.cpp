@@ -1057,7 +1057,7 @@ void CMainWindow::StartRecording()
 			SettleAfterHiding();
 		}
 
-		Klip::SRecordingRequest request;
+		Recorder::SRecordingRequest request;
 		request.outputPath = m_currentPath.toStdString();
 		request.codec = CurrentCodec();
 		request.quality = CurrentQuality();
@@ -1139,7 +1139,7 @@ void CMainWindow::StopRecording()
 	m_pTimer->stop();
 
 	bool const written{ m_session.Stop() };
-	SSessionStats const stats{ m_session.GetStats() };
+	Recorder::SSessionStats const stats{ m_session.GetStats() };
 
 	if (written)
 	{
@@ -1283,7 +1283,7 @@ void CMainWindow::OnCaptureWithdrawn()
 //////////////////////////////////////////////////////////////////////////
 void CMainWindow::OnTick()
 {
-	SSessionStats const stats{ m_session.GetStats() };
+	Recorder::SSessionStats const stats{ m_session.GetStats() };
 
 	qint64 const elapsedMs{ m_clock.elapsed() };
 
