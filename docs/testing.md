@@ -6,7 +6,21 @@ run the application and then ask whether the file holds a recording -- and each 
 rather than a log.
 
 The runtime ones need a screen cast grant, so they belong to whoever is at the machine and none can
-gate CI. The last three need only a compiler, and the floor Docker besides.
+gate CI. The test suite and the last three need only a compiler, and the floor Docker besides.
+
+## The test suite
+
+```bash
+cmake --preset linux-gcc-debug && cmake --build --preset linux-gcc-debug
+ctest --test-dir build/gcc-Debug --output-on-failure
+```
+
+`KLIP_BUILD_TESTS` builds `KlipTests` from the googletest submodule; the Debug and sanitizer presets turn
+it on, and a user's build never does. ctest runs it under `dbus-run-session` with `tests/dbus-session.conf`,
+a session bus of its own with no service directories, so a test that asks for the desktop portal gets the
+suite's fake or nothing -- never the real one started on demand. Run it under the `asanubsan` and `tsan`
+presets as well as Debug: UBSan is set to halt there, so a finding fails the suite rather than scrolling
+past.
 
 ## The smoke test
 

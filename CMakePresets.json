@@ -27,7 +27,8 @@
       "binaryDir": "${sourceDir}/build/gcc-Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/gcc.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/gcc.cmake",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -59,7 +60,8 @@
       "inherits": "linux-gcc-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/gcc-asan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "address"
+        "KLIP_SANITIZER": "address",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -69,7 +71,8 @@
       "inherits": "linux-gcc-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/gcc-asanubsan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "address,undefined"
+        "KLIP_SANITIZER": "address,undefined",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -79,7 +82,8 @@
       "inherits": "linux-gcc-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/gcc-ubsan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "undefined"
+        "KLIP_SANITIZER": "undefined",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -89,7 +93,8 @@
       "inherits": "linux-gcc-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/gcc-tsan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "thread"
+        "KLIP_SANITIZER": "thread",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -100,7 +105,8 @@
       "binaryDir": "${sourceDir}/build/clang-Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/clang.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux/clang.cmake",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -132,7 +138,8 @@
       "inherits": "linux-clang-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/clang-asan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "address"
+        "KLIP_SANITIZER": "address",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -142,7 +149,8 @@
       "inherits": "linux-clang-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/clang-asanubsan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "address,undefined"
+        "KLIP_SANITIZER": "address,undefined",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -152,7 +160,8 @@
       "inherits": "linux-clang-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/clang-ubsan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "undefined"
+        "KLIP_SANITIZER": "undefined",
+        "KLIP_BUILD_TESTS": "ON"
       }
     },
     {
@@ -162,7 +171,8 @@
       "inherits": "linux-clang-relwithdebinfo",
       "binaryDir": "${sourceDir}/build/clang-tsan",
       "cacheVariables": {
-        "KLIP_SANITIZER": "thread"
+        "KLIP_SANITIZER": "thread",
+        "KLIP_BUILD_TESTS": "ON"
       }
     }
   ],

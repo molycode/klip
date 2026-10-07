@@ -57,12 +57,34 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_ffmpeg.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_tracy.cmake)
 
+option(KLIP_BUILD_TESTS "Build Klip's test suite, from the googletest submodule" OFF)
+
+if(KLIP_BUILD_TESTS)
+	# Normal variables, which googletest's options honour; neither its installation nor gmock is wanted.
+	set(INSTALL_GTEST OFF)
+	set(BUILD_GMOCK OFF)
+
+	# Before tge-core, whose Testing component takes googletest from whoever added it first.
+	add_subdirectory(external/googletest ${CMAKE_BINARY_DIR}/googletest EXCLUDE_FROM_ALL SYSTEM)
+	KlipSuppressExternalWarnings(gtest)
+
+	# A normal variable, because a cache entry would lose to the OFF an earlier configure already cached.
+	set(TGE_CORE_TESTING ON)
+
+	enable_testing()
+endif()
+
 # After Tracy: tge-core picks its profiling backend from whether Tracy::TracyClient already exists.
 add_subdirectory(external/tge-core EXCLUDE_FROM_ALL)
 
+add_subdirectory(src/bus)
 add_subdirectory(src/capture)
 add_subdirectory(src/encode)
 add_subdirectory(src/app)
+
+if(KLIP_BUILD_TESTS)
+	add_subdirectory(tests)
+endif()
 
 # Guarded like the install rules it undoes: a parent vendoring Klip uninstalls its own application, not
 # this one. Top level rather than beside those rules in src/app, because the manifest it reads records

@@ -1,3 +1,6 @@
 [submodule "external/tge-core"]
 	path = external/tge-core
 	url = https://github.com/molycode/tge-core
+[submodule "external/googletest"]
+	path = external/googletest
+	url = https://github.com/google/googletest

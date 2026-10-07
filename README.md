@@ -89,13 +89,15 @@ X11 path and none is needed.
 - **Qt 6.4+** — Widgets, DBus, Network. Used under LGPLv3 and linked dynamically.
 - **FFmpeg 6.1+** (avcodec, avfilter, avformat, avutil, swscale) and **libva** — encoding
 - **PipeWire 1.0+** and **libdrm** — the capture stream
+- **libsystemd 246+** — its sd-bus is how Klip talks to the desktop portal, so a distribution without
+  systemd cannot build Klip
 
 Ubuntu 24.04 and newer carry all of them:
 
 ```bash
 sudo apt install build-essential cmake ninja-build pkg-config qt6-base-dev \
     libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev libswscale-dev \
-    libva-dev libdrm-dev libpipewire-0.3-dev
+    libva-dev libdrm-dev libpipewire-0.3-dev libsystemd-dev
 ```
 
 On other distributions, configure and read the error: each dependency that is missing names its own
@@ -163,13 +165,16 @@ the Atspi typelib. The recording lands in a temporary directory and is deleted u
 ## Layout
 
 ```
-src/app/          the executable and its UI
-src/capture/      the portal session and the PipeWire streams
-src/encode/       the VAAPI encoder and the muxer
-cmake/            toolchains, per-compiler flags, platform defines
-external/tge-core the foundation library (submodule)
-scripts/          the FFmpeg build helper, the smoke test, the sanitizer triage tools
-docs/             the screenshot, what measurement taught, and how the checks are run
+src/app/            the executable and its UI
+src/bus/            the session bus connection, on a thread of its own
+src/capture/        the portal session and the PipeWire streams
+src/encode/         the VAAPI encoder and the muxer
+tests/              the test suite (KLIP_BUILD_TESTS), each run on a private session bus
+cmake/              toolchains, per-compiler flags, sanitizers, platform defines
+external/tge-core   the foundation library (submodule)
+external/googletest the test framework (submodule, only built with the tests)
+scripts/            the FFmpeg build helper, the floor build, the smoke test, the sanitizer triage tools
+docs/               the screenshot, what measurement taught, and how the checks are run
 ```
 
 [docs/traps.md](docs/traps.md) is the one to read before changing anything under `src/capture` or
