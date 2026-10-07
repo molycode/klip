@@ -54,7 +54,10 @@ gate fails. A sanitizer's own exit code would fail that gate on third-party leak
 
 Two sources cannot be driven unattended. A **window** needs the grant kept -- tick *Remember the window*,
 pick once by hand, and later runs restore it. A **region** needs a drag, and AT-SPI injects through XTEST,
-which cannot reach a native Wayland surface.
+which cannot reach a native Wayland surface. Running Klip under XWayland (`QT_QPA_PLATFORM=xcb`) and
+dragging with `xdotool` does not get round it on GNOME: its Xwayland runs with `-enable-ei-portal`, so
+XTEST input is forwarded through the RemoteDesktop portal and is dropped without that portal's consent,
+while X's own idea of the pointer moves as if it had worked.
 
 Every gate is written to be able to fail, which is worth re-checking if one is ever changed: a gate that
 delegates its verdict to another program's exit code is not a gate. `ffmpeg` returns 0 on a file whose
