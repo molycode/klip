@@ -86,7 +86,7 @@ X11 path and none is needed.
 ## Dependencies
 
 - **tge-core** — logging, memory, threading, IO. A git submodule; nothing to install.
-- **Qt 6.4+** — Widgets, DBus, Network. Used under LGPLv3 and linked dynamically.
+- **Qt 6.4+** — Widgets, for the window. Used under LGPLv3 and linked dynamically.
 - **FFmpeg 6.1+** (avcodec, avfilter, avformat, avutil, swscale) and **libva** — encoding
 - **PipeWire 1.0+** and **libdrm** — the capture stream
 - **libsystemd 246+** — its sd-bus is how Klip talks to the desktop portal, so a distribution without
@@ -167,6 +167,7 @@ It films the whole desktop, needs a screen cast grant the first time it runs, an
 ```
 src/app/            the executable and its UI
 src/bus/            the session bus connection, on a thread of its own
+src/desktop/        the tray and single instance, served on that bus
 src/capture/        the portal session and the PipeWire streams
 src/encode/         the VAAPI encoder and the muxer
 tests/              the test suite (KLIP_BUILD_TESTS), each run on a private session bus

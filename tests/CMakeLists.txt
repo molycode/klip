@@ -18,6 +18,7 @@ add_executable(KlipTests
 	capture/test_portal_session.cpp
 	desktop/fake_panel.hpp
 	desktop/fake_panel.cpp
+	desktop/test_single_instance.cpp
 	desktop/test_tray.cpp
 )
 

@@ -51,7 +51,7 @@ else()
 endif()
 
 # 6.4 is Ubuntu 24.04's; Klip uses only long-stable API.
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core DBus Gui Network Widgets)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/klip_ffmpeg.cmake)
 

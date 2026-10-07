@@ -10,8 +10,6 @@ add_executable(Klip
 	private/region_selector.cpp
 	private/screenshot.hpp
 	private/screenshot.cpp
-	private/single_instance.hpp
-	private/single_instance.cpp
 	private/session.hpp
 	private/session.cpp
 	private/tray_image.hpp
@@ -36,7 +34,6 @@ target_link_libraries(Klip PRIVATE
 	TgeLogging
 	TgeThreading
 	Qt6::Widgets
-	Qt6::Network
 )
 
 KlipApplyCompileFlags(Klip)
