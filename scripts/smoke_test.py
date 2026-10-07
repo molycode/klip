@@ -262,11 +262,25 @@ def probe(ffprobe, path):
 	}
 
 
+def stream_duration(stream):
+	"""Seconds the stream lasts, or None. MP4 states it on the stream; Matroska only in a DURATION tag,
+	HH:MM:SS.nnnnnnnnn."""
+	duration = None
+
+	if "duration" in stream:
+		duration = float(stream["duration"])
+	elif "DURATION" in stream.get("tags", {}):
+		hours, minutes, seconds = stream["tags"]["DURATION"].split(":")
+		duration = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+
+	return duration
+
+
 def probe_audio(ffprobe, path):
 	"""Answers what the audio track holds, or None when the file carries no audio at all."""
 	call = subprocess.run([str(ffprobe), "-v", "error", "-select_streams", "a:0", "-count_packets",
 	                       "-show_entries",
-	                       "stream=codec_name,sample_rate,channels,nb_read_packets,duration",
+	                       "stream=codec_name,sample_rate,channels,nb_read_packets,duration:stream_tags=DURATION",
 	                       "-of", "json", str(path)], capture_output=True, text=True)
 
 	if call.returncode != 0:
@@ -284,7 +298,7 @@ def probe_audio(ffprobe, path):
 		"rate": int(stream.get("sample_rate", 0)),
 		"channels": int(stream.get("channels", 0)),
 		"packets": int(stream.get("nb_read_packets", 0)),
-		"duration": float(stream.get("duration", 0.0)),
+		"duration": stream_duration(stream),
 	}
 
 
@@ -457,10 +471,15 @@ def evaluate(ffprobe, ffmpeg, recording, claimed, codec, seconds, tolerance, wan
 			# A zero-packet audio track is a valid one, so the count is what proves sound arrived.
 			sound = (audio["codec"] == "aac" and audio["rate"] == 48000 and audio["channels"] == 2
 			         and audio["packets"] > 0)
-			drift = abs(audio["duration"] - measured["duration"])
-			gates.append(("audio", sound and drift <= tolerance,
-			              f"{audio['codec']} {audio['rate']}Hz x{audio['channels']}, "
-			              f"{audio['packets']} packets, {drift * 1000:.0f}ms off the video"))
+
+			if audio["duration"] is None:
+				gates.append(("audio", False, f"{audio['codec']} {audio['rate']}Hz x{audio['channels']}, "
+				                              f"{audio['packets']} packets, but the file states no duration for it"))
+			else:
+				drift = abs(audio["duration"] - measured["duration"])
+				gates.append(("audio", sound and drift <= tolerance,
+				              f"{audio['codec']} {audio['rate']}Hz x{audio['channels']}, "
+				              f"{audio['packets']} packets, {drift * 1000:.0f}ms off the video"))
 	elif audio is not None:
 		gates.append(("audio", False, "the settings asked for no sound and the file carries some"))
 
