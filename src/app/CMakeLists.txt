@@ -10,8 +10,6 @@ add_executable(Klip
 	private/region_selector.cpp
 	private/screenshot.hpp
 	private/screenshot.cpp
-	private/tray_image.hpp
-	private/tray_image.cpp
 )
 
 set_target_properties(Klip PROPERTIES AUTOMOC ON)

@@ -2,12 +2,14 @@ add_library(KlipDesktop STATIC
 	public/desktop/request.hpp
 	public/desktop/single_instance.hpp
 	public/desktop/tray.hpp
+	public/desktop/tray_icons.hpp
 	private/log.hpp
 	private/log.cpp
 	private/menu.hpp
 	private/menu.cpp
 	private/single_instance.cpp
 	private/tray.cpp
+	private/tray_icons.cpp
 )
 
 target_include_directories(KlipDesktop

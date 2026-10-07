@@ -25,6 +25,7 @@ add_executable(KlipTests
 	desktop/fake_panel.cpp
 	desktop/test_single_instance.cpp
 	desktop/test_tray.cpp
+	desktop/test_tray_icons.cpp
 	recorder/test_format.cpp
 	recorder/test_level_ballistics.cpp
 	recorder/test_recorder.cpp

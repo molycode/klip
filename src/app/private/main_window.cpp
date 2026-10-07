@@ -2,12 +2,12 @@
 
 #include "bus/connection.hpp"
 #include "config/xdg_paths.hpp"
+#include "desktop/tray_icons.hpp"
 #include "level_meter.hpp"
 #include "log.hpp"
 #include "recorder/frame_rates.hpp"
 #include "recorder/labels.hpp"
 #include "region_selector.hpp"
-#include "tray_image.hpp"
 
 #include <QtCore/QEventLoop>
 #include <QtCore/QMetaObject>
@@ -212,7 +212,7 @@ bool CMainWindow::Initialize()
 	m_settingsStore.Initialize(Config::GetConfigHome(), Config::GetHome());
 
 	bool const initialized{ m_recorder.Initialize(
-		m_settingsStore.Load(), GetPrimaryScreen(), DrawTrayIcons(),
+		m_settingsStore.Load(), GetPrimaryScreen(), Desktop::DrawTrayIcons(),
 		[this](Desktop::SRequest const& request) { Request(request); },
 		[this]() {
 			// Arrives on the PipeWire or the bus thread; the recorder is the UI thread's.
