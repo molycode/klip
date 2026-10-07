@@ -73,7 +73,7 @@ decided by which frame *performed* the access, not by which frames appear.
 
 ```bash
 cmake -S . -B build/valgrind -DCMAKE_BUILD_TYPE=RelWithDebInfo -DTGE_ENABLE_GLOBAL_ALLOCATOR=OFF
-valgrind --tool=memcheck --leak-check=full --log-file=vg.log <binary>
+valgrind --tool=memcheck --fullpath-after= --leak-check=full --log-file=vg.log <binary>
 python3 scripts/valgrind_triage.py vg.log
 ```
 

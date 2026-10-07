@@ -32,6 +32,12 @@ def blocks(text):
 		yield current
 
 
+def performer(frames):
+	"""The innermost frame that is not valgrind's own replacement: the access itself, or the caller that
+	allocated. Valgrind prints only a file's basename unless run with --fullpath-after=."""
+	return next((f for f in frames if "vg_replace_" not in f), "")
+
+
 def main():
 	parser = argparse.ArgumentParser(description="Summarise a valgrind log")
 	parser.add_argument("log", help="the file named by --log-file")
@@ -61,12 +67,11 @@ def main():
 		kinds[kind] += 1
 
 		frames = [l.strip() for l in block if l.strip().startswith(("at ", "by "))]
-		mine = [f for f in frames if args.own in f]
+		real = performer(frames)
 
-		if mine:
-			ours.append((kind, block[0][:66], mine[:3]))
+		if args.own in real:
+			ours.append((kind, block[0][:66], [f for f in frames if "vg_replace_" not in f][:3]))
 		else:
-			real = next((f for f in frames if "vg_replace_malloc" not in f), "")
 			name = re.search(r"\(in ([^)]+)\)|: ([^(]+) \(", real)
 			foreign[(kind, (name.group(1) or name.group(2)).split("/")[-1].strip() if name else "unknown")] += 1
 
