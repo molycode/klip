@@ -15,6 +15,10 @@ from pathlib import Path
 # ownership is decided by this checkout's root rather than by a fragment.
 REPO = Path(__file__).resolve().parent.parent
 
+# tge-core is built from source and instrumented with Klip, so what it does is ours to fix -- but not the
+# libraries it vendors under its own external/.
+OWN = (f"{REPO}/src/", f"{REPO}/external/tge-core/public/", f"{REPO}/external/tge-core/private/")
+
 FRAME = re.compile(r"#\d+ 0x\S+ in ([^\n]+)")
 LEAK = re.compile(r"(Direct|Indirect) leak of (\d+) byte\(s\) in (\d+) object")
 
@@ -28,12 +32,22 @@ def innermost(record):
 	return ""
 
 
+def owned(frame, prefixes):
+	return any(prefix in frame for prefix in prefixes)
+
+
+def describe(prefixes):
+	return ", ".join(prefix.removeprefix(f"{REPO}/") for prefix in prefixes)
+
+
 def main():
 	parser = argparse.ArgumentParser(description="Summarise an AddressSanitizer log")
 	parser.add_argument("log", help="the file named by ASAN_OPTIONS log_path")
-	parser.add_argument("--own", default=f"{REPO}/src/",
-	                    help="path prefix marking first-party frames (default: this checkout's src)")
+	parser.add_argument("--own", action="append",
+	                    help="a path prefix marking first-party frames, repeatable (default: this checkout's "
+	                         "src and tge-core's own sources)")
 	args = parser.parse_args()
+	own = args.own or OWN
 
 	try:
 		with open(args.log, errors="replace") as handle:
@@ -64,14 +78,14 @@ def main():
 		nbytes = int(match.group(2))
 		frame = innermost(record)
 
-		if args.own in frame:
+		if owned(frame, own):
 			own_leaks.append((nbytes, int(match.group(3)), frame))
 		else:
 			name = frame.split(" /")[0].split("(")[0].strip() or "unknown"
 			other[name[:58]] += 1
 			other_bytes[name[:58]] += nbytes
 
-	print(f"\n== leaks allocated by this project ({args.own}) ==")
+	print(f"\n== leaks allocated by this project ({describe(own)}) ==")
 	if own_leaks:
 		for nbytes, count, frame in sorted(own_leaks, reverse=True):
 			print(f"  {nbytes:9,} B in {count:4} object(s)   {frame}")

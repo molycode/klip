@@ -65,7 +65,9 @@ nothing, which reads exactly like a clean run. GCC leaves undefined references, 
 `nm -uC <binary> | grep -c __ubsan_handle` must be non-zero; Clang links its runtime statically, so the
 same count without `-u` is the one that matters there.
 
-`scripts/asan_triage.py` and `scripts/tsan_triage.py` reduce a log to what belongs to this checkout.
+`scripts/asan_triage.py` and `scripts/tsan_triage.py` reduce a log to what belongs to this checkout --
+Klip's `src/` and tge-core's own sources, which are built and instrumented with it, but not the libraries
+tge-core vendors.
 Entering Qt, Mesa or glib puts Klip's frames on the stack of every error inside them, so ownership is
 decided by which frame *performed* the access, not by which frames appear.
 

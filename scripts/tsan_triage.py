@@ -11,6 +11,11 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+# tge-core is built from source and instrumented with Klip, so what it does is ours to fix -- but not the
+# libraries it vendors under its own external/.
+OWN = (f"{REPO}/src/", f"{REPO}/external/tge-core/public/", f"{REPO}/external/tge-core/private/")
+
 ACCESS = re.compile(r"\s*(?:Atomic )?(?:Write|Read|Previous write|Previous read|Previous atomic)")
 
 
@@ -29,12 +34,22 @@ def performing_frames(report):
 	return frames
 
 
+def owned(frame, prefixes):
+	return any(prefix in frame for prefix in prefixes)
+
+
+def describe(prefixes):
+	return ", ".join(prefix.removeprefix(f"{REPO}/") for prefix in prefixes)
+
+
 def main():
 	parser = argparse.ArgumentParser(description="Summarise a ThreadSanitizer log")
 	parser.add_argument("log", help="the file named by TSAN_OPTIONS log_path")
-	parser.add_argument("--own", default=f"{REPO}/src/",
-	                    help="path prefix marking first-party frames (default: this checkout's src)")
+	parser.add_argument("--own", action="append",
+	                    help="a path prefix marking first-party frames, repeatable (default: this checkout's "
+	                         "src and tge-core's own sources)")
 	args = parser.parse_args()
+	own = args.own or OWN
 
 	try:
 		with open(args.log, errors="replace") as handle:
@@ -53,7 +68,7 @@ def main():
 		kind = re.match(r"WARNING: ThreadSanitizer: ([a-z\- ]+)", report)
 		kinds[kind.group(1).strip() if kind else "unknown"] += 1
 
-		performed = [f for f in performing_frames(report) if args.own in f]
+		performed = [f for f in performing_frames(report) if owned(f, own)]
 
 		if performed:
 			threads = re.findall(r"Thread T\d+ '([^']+)'", report)
@@ -66,7 +81,7 @@ def main():
 	for kind, n in kinds.most_common():
 		print(f"  {n:4}  {kind}")
 
-	print(f"\n== races performed by this project ({args.own}) ==")
+	print(f"\n== races performed by this project ({describe(own)}) ==")
 	if ours:
 		for frames, threads in ours:
 			for frame in dict.fromkeys(frames):

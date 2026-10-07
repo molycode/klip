@@ -11,6 +11,10 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+# tge-core is built from source and instrumented with Klip, so what it does is ours to fix -- but not the
+# libraries it vendors under its own external/.
+OWN = (f"{REPO}/src/", f"{REPO}/external/tge-core/public/", f"{REPO}/external/tge-core/private/")
 KIND = re.compile(r"^(Invalid read|Invalid write|Invalid free|Mismatched free|Conditional jump|"
                   r"Use of uninitialised|Syscall param|Source and destination overlap|"
                   r"[\d,]+ (?:\([\d,]+ direct, [\d,]+ indirect\) )?bytes in [\d,]+ blocks are "
@@ -38,12 +42,22 @@ def performer(frames):
 	return next((f for f in frames if "vg_replace_" not in f), "")
 
 
+def owned(frame, prefixes):
+	return any(prefix in frame for prefix in prefixes)
+
+
+def describe(prefixes):
+	return ", ".join(prefix.removeprefix(f"{REPO}/") for prefix in prefixes)
+
+
 def main():
 	parser = argparse.ArgumentParser(description="Summarise a valgrind log")
 	parser.add_argument("log", help="the file named by --log-file")
-	parser.add_argument("--own", default=f"{REPO}/src/",
-	                    help="path prefix marking first-party frames (default: this checkout's src)")
+	parser.add_argument("--own", action="append",
+	                    help="a path prefix marking first-party frames, repeatable (default: this checkout's "
+	                         "src and tge-core's own sources)")
 	args = parser.parse_args()
+	own = args.own or OWN
 
 	try:
 		with open(args.log, errors="replace") as handle:
@@ -69,7 +83,7 @@ def main():
 		frames = [l.strip() for l in block if l.strip().startswith(("at ", "by "))]
 		real = performer(frames)
 
-		if args.own in real:
+		if owned(real, own):
 			ours.append((kind, block[0][:66], [f for f in frames if "vg_replace_" not in f][:3]))
 		else:
 			name = re.search(r"\(in ([^)]+)\)|: ([^(]+) \(", real)
@@ -79,7 +93,7 @@ def main():
 	for kind, n in kinds.most_common():
 		print(f"  {n:4}  {kind}")
 
-	print(f"\n== involving this project ({args.own}) ==")
+	print(f"\n== involving this project ({describe(own)}) ==")
 	if ours:
 		for kind, header, frames in ours:
 			print(f"  [{kind}] {header}")
