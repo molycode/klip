@@ -244,6 +244,7 @@ void CAudioDevices::Terminate()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Synchronous: it round-trips the server, so the lists are current when it returns.
 void CAudioDevices::Refresh()
 {
 	TGE_PROFILE_SCOPE_N("Devices: refresh");
@@ -291,6 +292,8 @@ std::vector<SAudioDevice> const& CAudioDevices::GetSinks() const
 }
 
 //////////////////////////////////////////////////////////////////////////
+// The server's own default source is not consulted: it was measured pointing at a sink, which would record
+// system audio through the microphone toggle.
 std::vector<SAudioDevice> const& CAudioDevices::GetSources() const
 {
 	return m_sources;

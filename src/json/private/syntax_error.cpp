@@ -10,6 +10,7 @@ constexpr bool Strict{ true };
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// ignoreComments as the parse that failed had it, or a comment would be named as the error.
 std::string DescribeSyntaxError(std::string_view text, bool ignoreComments)
 {
 	CSyntaxErrorHandler handler{};

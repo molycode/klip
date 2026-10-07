@@ -10,6 +10,7 @@ constexpr std::string_view PositionStart{ "line " };
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// nlohmann's SAX interface names these methods.
 bool CSyntaxErrorHandler::null()
 {
 	return true;

@@ -191,6 +191,7 @@ void CAudioImpl::HandleProcess()
 
 			if (callback)
 			{
+				// On the audio thread; the samples die when it returns.
 				callback(buffer);
 			}
 		}
@@ -200,6 +201,7 @@ void CAudioImpl::HandleProcess()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Returns only once the server has answered with a format: the muxer needs it before it writes its header.
 bool CAudioStream::Initialize(SAudioDevice const& device, BufferCallback callback, EndedCallback onEnded)
 {
 	TGE_PROFILE_SCOPE_N("Audio: open stream");

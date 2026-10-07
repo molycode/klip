@@ -6,7 +6,6 @@ namespace Klip::Capture
 {
 inline constexpr uint32_t MaxAudioChannels{ 2 };
 
-// The samples die when the callback returns, so copy anything kept.
 struct SAudioBuffer final
 {
 	float const* pPlanes[MaxAudioChannels]{ nullptr, nullptr };

@@ -66,6 +66,16 @@ a Raphael iGPU. Where a number depends on that hardware, it says so.
 
 ## Encoding
 
+- **The quality ladder is measured, not derived.** `quality.hpp` holds `AVCodecContext::global_quality`
+  values, which every VAAPI encoder reads once `rc_mode` is CQP: H.264 and HEVC clamp them to 1-51, AV1 reads
+  a q_index and clamps to 1-255. They were measured on one AMD card so that a level costs about the same
+  whichever codec it lands on -- against H.264 the HEVC column comes out 11-19% smaller and the AV1 column
+  23-26%, which is the file size someone changing codec is really asking about. The bits per pixel per frame
+  beside them, times ten thousand, come from the same card, and content moves them by half again either way,
+  which is why the window says "up to".
+- **WebM records AV1 only, and silent.** WebM carries VP8, VP9 and AV1, and Klip ships neither VP encoder.
+  Its audio is Opus or Vorbis, which the pinned LGPL FFmpeg flags experimental; AAC, the one audio codec it
+  gives MP4 and Matroska, WebM does not take.
 - **A VAAPI surface belongs to the display it was made on.** `hwmap`'s `derive_device` mints a second
   VAAPI device beside the one Klip already opened, and an encoder bound to one display rejects the other's
   surfaces as an invalid id, then trips an assertion inside FFmpeg. The filter graph is handed Klip's own

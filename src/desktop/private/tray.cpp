@@ -120,6 +120,7 @@ int AppendMenuItem(sd_bus_message* pMessage, int32_t id, bool recording)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// Function-local statics: sd-bus keeps the pointer, and member scope lets their lambdas reach the handlers.
 sd_bus_vtable const* CTray::GetItemVtable()
 {
 	static sd_bus_vtable const vtable[]{
@@ -221,6 +222,8 @@ sd_bus_vtable const* CTray::GetMenuVtable()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// By hand rather than through a toolkit's tray: only this interface carries XAyatanaLabel, the text a panel
+// shows beside the icon.
 bool CTray::Initialize(STrayIcons icons, RequestCallback onRequest)
 {
 	TGE_PROFILE_SCOPE_N("Startup: tray");
@@ -238,6 +241,7 @@ bool CTray::Initialize(STrayIcons icons, RequestCallback onRequest)
 
 			if (result >= 0)
 			{
+				// The only member the owner's thread reads, once Initialize's wait returns.
 				m_available = true;
 			}
 			else if (sd_bus_error_has_name(&error, SD_BUS_ERROR_SERVICE_UNKNOWN)

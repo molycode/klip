@@ -34,8 +34,6 @@ struct SFrame final
 	SPlane         planes[MaxPlanes]{};
 	uint64_t       modifier{ 0 };
 	uint64_t       timestampNs{ 0 };
-	// A window capture is padded out to a larger buffer, and the padding is not black by accident --
-	// it is simply not part of the frame.
 	uint32_t       cropX{ 0 };
 	uint32_t       cropY{ 0 };
 	uint32_t       cropWidth{ 0 };

@@ -26,7 +26,6 @@ struct SSettings final
 	std::array<SAudioChoice, NumAudioSources> audio;
 	Encode::EQuality                          audioQuality{ Encode::EQuality::High };
 
-	// The portal's grants, kept so the picker does not ask again.
 	std::string screenToken;
 	std::string windowToken;
 

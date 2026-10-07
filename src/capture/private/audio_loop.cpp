@@ -6,6 +6,8 @@
 
 namespace Klip::Capture
 {
+// Never closed between streams: a count would reach zero between the monitors stopping and the recording
+// streams opening, which is the churn itself.
 CAudioLoop gAudioLoop;
 
 //////////////////////////////////////////////////////////////////////////

@@ -20,7 +20,6 @@ struct SFakeStream final
 	bool     hasSize{ true };
 };
 
-// How the fake answers.
 struct SFakeScript final
 {
 	uint32_t                 version{ 5 };
@@ -30,14 +29,12 @@ struct SFakeScript final
 	std::string              restoreToken{ "granted" };
 	std::vector<SFakeStream> streams{ { .nodeId = 42, .width = 2880, .height = 1620, .hasSize = true } };
 
-	// Keeps Start's Response back until ReleaseStart.
 	bool holdStart{ false };
 
 	uint32_t    screenshotResponse{ 0 };
 	std::string screenshotUri{ "file:///tmp/klip-test-shot.png" };
 };
 
-// What Klip asked of it.
 struct SFakeRecord final
 {
 	uint32_t    types{ 0 };
@@ -48,8 +45,6 @@ struct SFakeRecord final
 	bool        screenshotInteractive{ true };
 };
 
-// org.freedesktop.portal.Desktop's ScreenCast and Screenshot, on a connection and a thread of its own.
-// Everything it holds is touched only on that thread, so every accessor goes through Run.
 class CFakePortal final : private Tge::SNoCopyNoMove
 {
 public:
@@ -66,11 +61,9 @@ public:
 	void ReleaseStart();
 	void CloseFromCompositor();
 
-	// The name goes and comes back, as if no portal were installed.
 	void Withdraw();
 	bool Restore();
 
-	// sd-bus calls these; they are public only so its plain function pointers can reach them.
 	int GetVersion(sd_bus_message* pReply);
 	int OnCreateSession(sd_bus_message* pMessage);
 	int OnSelectSources(sd_bus_message* pMessage);

@@ -93,6 +93,7 @@ std::filesystem::path GetConfigHome()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// As QStandardPaths finds MoviesLocation, which every Klip.conf directory default was made from.
 std::filesystem::path GetVideosDirectory(std::filesystem::path const& configHome, std::filesystem::path const& home)
 {
 	std::filesystem::path const fallback{ home / "Videos" };

@@ -39,6 +39,7 @@ std::vector<Bus::SOption> GetMenuProperties(int32_t id, bool recording)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// (ia{sv}av), with the root's items as children when depth allows.
 int AppendMenuLayout(sd_bus_message* pMessage, int32_t id, int32_t depth, bool recording)
 {
 	int result{ sd_bus_message_open_container(pMessage, 'r', "ia{sv}av") };

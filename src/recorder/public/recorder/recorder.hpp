@@ -32,15 +32,12 @@
 
 namespace Klip::Recorder
 {
-// Everything Klip's window shows and does, without the window. Every call but the wake belongs to the
-// thread that owns it.
 class CRecorder final : private Tge::SNoCopyNoMove
 {
 public:
 
 	using TimePoint = std::chrono::steady_clock::time_point;
 
-	// From any thread; asks only that Update be called on the owner's.
 	using WakeCallback = std::function<void()>;
 
 	CRecorder() = default;
@@ -50,11 +47,9 @@ public:
 	                Desktop::RequestCallback onRequest, WakeCallback wake);
 	void Terminate();
 
-	// After every wake, and once GetNextDeadline has passed.
 	void Update();
 	std::optional<TimePoint> GetNextDeadline() const;
 
-	// The user's choices; each marks the choices changed.
 	void SetSource(ESource source);
 	void SetRememberWindow(bool remember);
 	void SetDirectory(std::string directory);
@@ -67,14 +62,11 @@ public:
 	void SetAudioDevice(EAudioSource source, std::string nodeName);
 	void SetGain(EAudioSource source, int decibels);
 
-	// Read when the size hint is next worked out, not before.
 	void SetScreen(SScreen const& screen) { m_screen = screen; }
 
-	// The previews run only while the window is on screen.
 	void SetVisible(bool visible);
 	void RefreshAudioDevices();
 
-	// A start runs in steps so the window can get out of shot between them.
 	bool PrepareRecording();
 	void BeginRecording(Encode::SRegion const& region);
 	void RequestCapture();
@@ -132,11 +124,9 @@ private:
 	std::array<Capture::CAudioStream, NumAudioSources> m_monitors;
 	std::array<CLevelBallistics, NumAudioSources>      m_meters;
 
-	// The node each preview has open, empty when it has none.
 	std::array<std::string, NumAudioSources> m_monitored;
 	std::array<uint64_t, NumAudioSources>    m_numBuffers{};
 
-	// What the settings file holds for each device, which is what a refresh looks for while the list is empty.
 	std::array<std::string, NumAudioSources> m_writtenDevices;
 
 	std::vector<Encode::EContainer> m_containers;
@@ -165,7 +155,6 @@ private:
 	EReveal m_reveal{ EReveal::None };
 	bool    m_visible{ false };
 
-	// The session's ended callback runs on the PipeWire or the bus thread, and can run twice.
 	std::atomic<bool> m_withdrawn{ false };
 };
 } // namespace Klip::Recorder

@@ -28,6 +28,7 @@ constexpr char const* ActivationTokenKey{ "activation-token" };
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// A function-local static: sd-bus keeps the pointer, and member scope lets its lambda reach OnActivate.
 sd_bus_vtable const* CSingleInstance::GetVtable()
 {
 	static sd_bus_vtable const vtable[]{
@@ -44,6 +45,7 @@ sd_bus_vtable const* CSingleInstance::GetVtable()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// False only when another Klip owns the name: better two windows than none.
 bool CSingleInstance::Claim()
 {
 	bool claimed{ true };
@@ -69,6 +71,7 @@ bool CSingleInstance::Claim()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// The token is this process's own, which a compositor wants before it lets another window be raised.
 void CSingleInstance::AskOwnerToShow(std::string_view activationToken)
 {
 	std::vector<Bus::SOption> platformData;
@@ -148,6 +151,7 @@ int CSingleInstance::OnActivate(sd_bus_message* pCall)
 	{
 		if (!token.empty())
 		{
+			// Before the Show it sanctions: a compositor refuses a raise it was not given a token for.
 			m_onRequest(SRequest{ ERequest::ActivationToken, token });
 		}
 

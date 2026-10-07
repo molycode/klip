@@ -29,6 +29,7 @@ uint64_t MonotonicNs()
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// The wake fires on the bus thread and asks only that Update be called on the session's owner.
 bool CSession::Initialize(WakeCallback wake)
 {
 	m_wake = std::move(wake);
@@ -328,6 +329,7 @@ void CSession::EncoderMain()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Asynchronous, since the compositor decides whether it starts; the callback fires from Update.
 void CSession::Start(SRecordingRequest const& request, StartedCallback callback)
 {
 	m_request = request;
@@ -349,6 +351,7 @@ void CSession::Start(SRecordingRequest const& request, StartedCallback callback)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Carries on a Start the portal has answered.
 void CSession::Update()
 {
 	SAnswer answer;

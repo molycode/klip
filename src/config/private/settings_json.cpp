@@ -309,6 +309,7 @@ void ReadDocument(JsonValue const& root, SSettingsDocument& document)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Never brace-initialised: nlohmann makes a json from one braced value a one-element array.
 JsonValue ParseKept(std::string_view kept)
 {
 	JsonValue root = JsonValue::parse(kept, nullptr, AllowExceptions, IgnoreComments);
@@ -338,6 +339,7 @@ JsonValue& GetSection(JsonValue& parent, std::string_view key)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// Over kept, the text last read or written, so the keys this Klip does not know survive it.
 std::string WriteSettingsJson(Recorder::SSettings const& settings, std::string_view kept)
 {
 	JsonValue root = ParseKept(kept);
@@ -380,6 +382,7 @@ std::string WriteSettingsJson(Recorder::SSettings const& settings, std::string_v
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Only text that is not a JSON object fails as a whole; an invalid value keeps its default and is counted.
 std::expected<SSettingsDocument, ESettingsJsonError> ReadSettingsJson(std::string_view text,
                                                                       Recorder::SSettings const& defaults)
 {

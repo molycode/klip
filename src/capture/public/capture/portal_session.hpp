@@ -16,7 +16,6 @@ struct SStreamInfo final
 {
 	uint32_t nodeId{ 0 };
 
-	// Logical layout size. Mutter streams at this size too, so a scaled display records scaled.
 	uint32_t width{ 0 };
 	uint32_t height{ 0 };
 };
@@ -39,19 +38,13 @@ struct SPortalGrant final
 	EPortalResult result{ EPortalResult::Failed };
 	SStreamInfo   stream;
 
-	// On success the receiver owns it and must close it.
 	int pipeWireFd{ -1 };
 
-	// A token is spent by the request that carries it, so this replaces it even when the recording then
-	// fails to start.
 	std::string restoreToken;
 };
 
-// A screen is the same screen next time, so its grant is always worth keeping. Which window someone wants
-// is a fresh question unless they say otherwise.
 bool KeepsGrant(ESourceType source, bool rememberWindow);
 
-// Runs on Bus::gConnection's thread, where its callbacks fire too.
 class CPortalSession final : private Tge::SNoCopyNoMove
 {
 public:
@@ -65,10 +58,8 @@ public:
 
 	bool Initialize(ClosedCallback onClosed);
 
-	// No callback fires once this returns.
 	void Terminate();
 
-	// Idempotent; a later Start opens a fresh session.
 	void Close();
 
 	void Start(ESourceType source, bool rememberWindow, std::string restoreToken, ResultCallback callback);
@@ -86,7 +77,6 @@ private:
 	void Probe(sd_bus* pBus);
 	void Begin(sd_bus* pBus, ResultCallback callback);
 
-	// Subscribes before the call goes out; the portal can answer first.
 	bool Request(sd_bus* pBus, EStep step, char const* pMember,
 	             std::function<int(sd_bus_message*, std::string const& token)> const& fill);
 

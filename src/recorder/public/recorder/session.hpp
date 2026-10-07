@@ -26,12 +26,10 @@ struct SRecordingRequest final
 	Capture::ESourceType source{ Capture::ESourceType::Screen };
 	bool                 rememberWindow{ false };
 
-	// The portal's grant from last time, if it was kept; a picker appears without one.
 	std::string          restoreToken;
 	Encode::ECodec       codec{ Encode::ECodec::H264 };
 	Encode::EQuality     quality{ Encode::EQuality::Balanced };
 
-	// Never a floor: an idle screen sends less than it.
 	uint32_t             maxFrameRate{ 0 };
 
 	Capture::SAudioDevice systemAudio;
@@ -57,13 +55,10 @@ public:
 
 	static constexpr uint32_t InvalidSource{ std::numeric_limits<uint32_t>::max() };
 
-	// Asynchronous because the compositor decides whether it starts, not Klip. Fires from Update.
 	using StartedCallback = std::function<void(bool)>;
 
-	// Fires on the PipeWire thread or the bus thread.
 	using EndedCallback = std::function<void()>;
 
-	// Fires on the bus thread, and asks only that Update be called on the thread that owns the session.
 	using WakeCallback = std::function<void()>;
 
 	CSession() = default;
@@ -77,7 +72,6 @@ public:
 	void Start(SRecordingRequest const& request, StartedCallback callback);
 	bool Stop();
 
-	// Carries on a Start the portal has answered.
 	void Update();
 
 	bool IsRecording() const { return m_encoding.load(std::memory_order_acquire); }
@@ -86,7 +80,6 @@ public:
 
 	std::string const& GetStartFailure() const { return m_startFailure; }
 
-	// What the portal granted on the last Start, empty when it granted nothing to keep.
 	std::string const& GetRestoreToken() const { return m_restoreToken; }
 
 	Capture::CAudioStream const& GetSystemAudio() const { return m_systemAudio; }

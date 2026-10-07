@@ -15,7 +15,6 @@ struct sd_bus_vtable;
 
 namespace Klip::Desktop
 {
-// (iiay) as the StatusNotifierItem specification marshals an icon: ARGB32, network byte order.
 struct STrayImage final
 {
 	int32_t              width{ 0 };
@@ -29,9 +28,6 @@ struct STrayIcons final
 	STrayImage recording;
 };
 
-// org.kde.StatusNotifierItem with its com.canonical.dbusmenu, on Bus::gConnection's thread. By hand rather than
-// through a toolkit's tray because only this interface carries XAyatanaLabel, the text a panel shows beside the
-// icon.
 class CTray final : private Tge::SNoCopyNoMove
 {
 public:
@@ -39,7 +35,6 @@ public:
 	CTray() = default;
 	~CTray() = default;
 
-	// Publishes the item whether or not a panel takes it; IsAvailable says whether one did.
 	bool Initialize(STrayIcons icons, RequestCallback onRequest);
 	void Terminate();
 
@@ -51,7 +46,6 @@ public:
 
 private:
 
-	// Function-local statics: sd-bus keeps the pointer, and member scope lets their lambdas reach the handlers.
 	static sd_bus_vtable const* GetItemVtable();
 	static sd_bus_vtable const* GetMenuVtable();
 
@@ -73,7 +67,6 @@ private:
 	void ApplyDetail(sd_bus* pBus, std::string detail);
 	void Emit(sd_bus* pBus, char const* pSignal) const;
 
-	// The bus thread's alone, but for m_available, written inside Initialize's wait.
 	STrayIcons      m_icons;
 	RequestCallback m_onRequest;
 	std::string     m_serviceName;

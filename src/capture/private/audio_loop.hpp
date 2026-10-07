@@ -27,7 +27,5 @@ private:
 	pw_core*        m_pCore{ nullptr };
 };
 
-// Never closed between streams: a count would reach zero between the monitors stopping and the recording
-// streams opening, which is the churn itself.
 extern CAudioLoop gAudioLoop;
 } // namespace Klip::Capture

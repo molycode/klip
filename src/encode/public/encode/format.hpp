@@ -66,8 +66,6 @@ inline constexpr std::array ContainerEntries
 	SContainerEntry{ EContainer::Mp4,      "mp4",      "mp4",  AllCodecs, true },
 	SContainerEntry{ EContainer::Matroska, "matroska", "mkv",  AllCodecs, true },
 
-	// WebM carries only VP8, VP9 and AV1, and Klip ships neither VP. Its audio is Opus or Vorbis, and
-	// the pinned FFmpeg flags both encoders experimental, so it records silent.
 	SContainerEntry{ EContainer::WebM,     "webm",     "webm", CodecBit(ECodec::Av1), false }
 };
 
@@ -104,7 +102,6 @@ inline constexpr std::string_view GetCodecEncoder(ECodec codec)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Falls back when the name is not one Klip writes, so an edited settings file cannot leave it unset.
 inline constexpr ECodec ParseCodec(std::string_view name, ECodec fallback)
 {
 	ECodec codec{ fallback };
@@ -201,7 +198,6 @@ inline constexpr bool ContainerCarriesAudio(EContainer container)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// An unnamed codec would be written to the settings file as "unknown" and never read back.
 consteval bool AreFormatNamesComplete()
 {
 	bool complete{ true };
@@ -221,5 +217,6 @@ consteval bool AreFormatNamesComplete()
 	return complete;
 }
 
-static_assert(AreFormatNamesComplete(), "a codec or container is missing its name");
+static_assert(AreFormatNamesComplete(), "a codec or container has no name, so the settings file would "
+                                        "write \"unknown\" and never read it back");
 } // namespace Klip::Encode

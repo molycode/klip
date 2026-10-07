@@ -22,6 +22,7 @@ sd_bus_vtable const Vtable[]{
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// On a connection and a thread of its own; what it records is touched only there.
 bool CFakeFileManager::Initialize()
 {
 	bool initialized{ false };

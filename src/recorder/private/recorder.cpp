@@ -28,6 +28,8 @@ constexpr uint32_t FallbackFrameRate{ 60 };
 constexpr double BytesPerMebibyte{ 1024.0 * 1024.0 };
 
 //////////////////////////////////////////////////////////////////////////
+// Klip's own trim per source. The system's volumes are left alone: a sink's does not reach its monitor at all,
+// and a source's belongs to every other application too.
 float ToGain(int decibels)
 {
 	return FromDecibels(static_cast<float>(decibels));
@@ -54,6 +56,8 @@ std::filesystem::path ToFolder(std::string const& directory)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// Every call but the wake belongs to the thread that owns the recorder; the wake, from any thread, asks only
+// that Update be called there.
 bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Desktop::STrayIcons icons,
                            Desktop::RequestCallback onRequest, WakeCallback wake)
 {
@@ -117,6 +121,7 @@ bool CRecorder::Initialize(SSettings settings, SScreen const& screen, Desktop::S
 
 	m_tray.Initialize(std::move(icons), std::move(onRequest));
 
+	// On the PipeWire or the bus thread, and it can run twice.
 	m_session.SetEndedCallback([this]() {
 		m_withdrawn.store(true, std::memory_order_release);
 		m_wake();
@@ -142,6 +147,7 @@ void CRecorder::Terminate()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// After every wake, and once GetNextDeadline has passed.
 void CRecorder::Update()
 {
 	m_session.Update();
@@ -279,6 +285,7 @@ void CRecorder::SetGain(EAudioSource source, int decibels)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// The previews run only while the window is on screen.
 void CRecorder::SetVisible(bool visible)
 {
 	m_visible = visible;
@@ -327,6 +334,7 @@ void CRecorder::RefreshAudioDevices()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// A start runs in steps, so the window can get out of shot between them.
 // Refused without a word unless idle: a tray toggle can arrive while the window is still on its way out.
 bool CRecorder::PrepareRecording()
 {
@@ -440,6 +448,7 @@ void CRecorder::OnStarted(bool started, bool keeps, Capture::ESourceType source,
 		m_recordingStart = now;
 		m_firstByte.reset();
 		m_tickDeadline = now + TickInterval;
+		// From the portal's grant, before the first frame -- and without one, if the encoder cannot start.
 		m_state = EState::Recording;
 		m_status = "Recording";
 		m_tray.SetRecording(true);
@@ -496,6 +505,7 @@ EReveal CRecorder::TakeReveal()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// What the settings file holds for each device, which a refresh looks for while the list is empty.
 SSettingsChanges CRecorder::TakeSettingsChanges()
 {
 	if (m_changes.choices)
@@ -682,6 +692,7 @@ void CRecorder::UpdateQualityHint()
 	// about to point at.
 	bool const knowsSize{ m_settings.source == ESource::Screen };
 
+	// An upper bound: the rate is the most the compositor delivers, and a screen sends frames only where it changes.
 	uint64_t bitsPerSecond{ Encode::EstimateBitsPerSecond(m_settings.codec, m_settings.quality, m_screen.width,
 	                                                      m_screen.height, rate) };
 

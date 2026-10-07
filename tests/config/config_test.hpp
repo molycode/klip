@@ -8,7 +8,6 @@
 
 namespace Klip::Tests
 {
-// A home of its own with the config home inside it, so no test reads or writes the real settings.
 class CConfigTest : public testing::Test
 {
 protected:
@@ -26,6 +25,5 @@ protected:
 };
 
 std::string ReadText(std::filesystem::path const& path);
-// Its directory is made first.
 void        WriteText(std::filesystem::path const& path, std::string_view text);
 } // namespace Klip::Tests

@@ -10,7 +10,6 @@
 
 namespace Klip::Recorder
 {
-// A peak meter's motion: a bar that falls rather than drops, a hold marker, and a latched clip.
 class CLevelBallistics final : private Tge::SNoCopyNoMove
 {
 public:

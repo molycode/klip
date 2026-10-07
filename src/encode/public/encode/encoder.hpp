@@ -39,9 +39,6 @@ public:
 
 	bool SubmitAudio(uint32_t source, Capture::SAudioBuffer const& buffer);
 
-	// Drains the encoder and writes the trailer. The file is not playable until this runs.
-	// endTimestampNs holds the last frame until then, so a screen that stopped changing does not
-	// shorten the recording. Zero gives the last frame a nominal frame's length.
 	bool Finish(uint64_t endTimestampNs);
 
 	uint64_t GetNumFramesEncoded() const { return m_numFramesEncoded.load(std::memory_order_relaxed); }
@@ -54,7 +51,6 @@ private:
 	bool OpenDrmDevice();
 	bool OpenFilterGraph(SSettings const& settings);
 
-	// Ahead of OpenEncoder: the codec must know whether the muxer wants a global header before it opens.
 	bool OpenContainer(SSettings const& settings);
 	bool OpenEncoder(SSettings const& settings);
 	bool OpenAudioEncoder(SSettings const& settings);
@@ -74,7 +70,6 @@ private:
 	void LevelSources(int64_t toleranceNs);
 	void WriteSilence(uint32_t source, uint64_t nanoseconds);
 
-	// numSamples must not exceed the codec's frame size: that is what the frames are sized for.
 	bool EncodeMixedFrame(int numSamples);
 	bool EncodeAudioFrames();
 	void FinishAudio();
@@ -95,7 +90,6 @@ private:
 	AVFrame*         m_pHardwareFrame{ nullptr };
 	AVPacket*        m_pVideoPacket{ nullptr };
 
-	// The newest video packet, until the next one says how long it lasts.
 	AVPacket*        m_pHeldPacket{ nullptr };
 	SwsContext*      m_pScaler{ nullptr };
 
@@ -123,8 +117,6 @@ private:
 
 	std::mutex m_audioMutex;
 
-	// av_interleaved_write_frame alone: holding this across an encode would put a GPU wait inside it,
-	// on the very thread that must hand a PipeWire buffer straight back.
 	std::mutex m_muxMutex;
 
 	uint32_t m_numAudioSources{ 0 };

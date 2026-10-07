@@ -27,6 +27,7 @@ constexpr size_t           MaxFileSize{ size_t{ 1024 } * 1024 };
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// klip/config.json, which the smoke test reads and edits too.
 void CSettingsStore::Initialize(std::filesystem::path const& configHome, std::filesystem::path const& home)
 {
 	m_defaults.directory = (GetVideosDirectory(configHome, home) / RecordingsDirectoryName).string();
@@ -103,6 +104,8 @@ Recorder::SSettings CSettingsStore::Load()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Only what changes names is taken from settings, so a token arriving does not write the device the recorder
+// fell back to while the chosen one is missing.
 void CSettingsStore::Save(Recorder::SSettings const& settings, Recorder::SSettingsChanges const& changes)
 {
 	if (m_canSave && (changes.choices || changes.screenToken || changes.windowToken))

@@ -173,7 +173,7 @@ touches every project that logs. With the check silent, this entry is what keeps
 constants measured on one AMD card. None of that is wrong today -- it is what Klip is -- but it is all
 sitting in the half of the tree a second backend would have to share.
 
-The comments say so plainly, on purpose: they are the map of what has to split, not a liability to hide.
+Headers carry no comments, so this entry is the map of what has to split, kept on purpose rather than hidden.
 
 **What would settle it:** the port itself. The first question it asks is whether `SFrame` can describe a
 D3D11 texture without naming one, and the second is what a quality ladder means when the encoder is NVENC.

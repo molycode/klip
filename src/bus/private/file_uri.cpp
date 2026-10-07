@@ -64,6 +64,7 @@ std::string ToFileUri(std::string_view path)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Empty unless the URI names a local file: no host or localhost, and no malformed escape or NUL.
 std::string ToLocalPath(std::string_view uri)
 {
 	std::string      path{};

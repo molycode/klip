@@ -155,6 +155,8 @@ SNodeProbe ProbeNode(std::string const& path)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// Keeps the render node encoding the most of Klip's codecs -- an iGPU beside a dGPU takes H.264 and HEVC but
+// not AV1. The encoder must record on this same path.
 void InitializeCapabilities()
 {
 	TGE_PROFILE_SCOPE_N("Probe: all nodes");
@@ -185,6 +187,7 @@ void InitializeCapabilities()
 
 	std::string const encodable{ DescribeCodecs(gCapabilities.encodes) };
 
+	// With no render node every codec stays listed, rather than none.
 	if (gCapabilities.devicePath.empty())
 	{
 		gLog.Error("No VAAPI render node could be opened. Klip encodes on the GPU.");
@@ -207,6 +210,7 @@ SCapabilities const& GetCapabilities()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// True also when the card took none of them, so the window is never left empty.
 bool IsCodecOffered(ECodec codec)
 {
 	bool anyEncodes{ false };

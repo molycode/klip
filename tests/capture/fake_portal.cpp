@@ -119,6 +119,7 @@ std::string ReadToken(sd_bus_message* pMessage, std::string_view wanted)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// On a connection and a thread of its own; everything it holds is touched only there, so accessors use Run.
 bool CFakePortal::Initialize()
 {
 	bool initialized{ false };

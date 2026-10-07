@@ -4,7 +4,6 @@
 
 namespace Klip::Tests
 {
-// tge-core comes up once around the whole suite, as it does around the application.
 class CTgeEnvironment final : public testing::Environment
 {
 public:

@@ -15,6 +15,7 @@ constexpr char const* ObjectPath{ "/org/freedesktop/FileManager1" };
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// False where the desktop has no org.freedesktop.FileManager1.
 bool ShowInFileManager(std::string_view fileUri)
 {
 	std::string const uri{ fileUri };

@@ -7,6 +7,8 @@
 namespace Klip::Capture
 {
 //////////////////////////////////////////////////////////////////////////
+// Once for the process, by whoever owns the streams: one stream's teardown would otherwise deinitialise it
+// under another still running.
 void InitializePipeWire()
 {
 	pw_init(nullptr, nullptr);

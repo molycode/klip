@@ -11,8 +11,6 @@
 
 namespace Klip::Config
 {
-// klip/config.json under the config home, which the smoke test reads and edits too. Every problem is logged
-// here, so callers only pass settings in and out.
 class CSettingsStore final : private Tge::SNoCopyNoMove
 {
 public:
@@ -20,11 +18,8 @@ public:
 	CSettingsStore() = default;
 	~CSettingsStore() = default;
 
-	// Nothing is saved without a configHome; home is where the default directory falls back to.
 	void Initialize(std::filesystem::path const& configHome, std::filesystem::path const& home);
 	Recorder::SSettings Load();
-	// Only what changes names is taken from settings, so a token arriving does not write the device the
-	// recorder fell back to while the chosen one is missing.
 	void Save(Recorder::SSettings const& settings, Recorder::SSettingsChanges const& changes);
 
 private:

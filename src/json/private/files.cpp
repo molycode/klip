@@ -148,6 +148,7 @@ std::expected<std::string, std::error_code> ReadFile(std::filesystem::path const
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Through a temporary file of its own, so neither a crash nor a second writer can tear it.
 std::expected<void, std::string> WriteFileAtomically(std::filesystem::path const& path, std::string_view text)
 {
 	std::filesystem::path const target{ ResolveLink(path) };

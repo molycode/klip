@@ -22,17 +22,9 @@ enum class EQuality : uint8_t
 
 inline constexpr size_t QualityCount = static_cast<size_t>(EQuality::Count);
 
-// Values for AVCodecContext::global_quality, which every VAAPI encoder reads once rc_mode is CQP.
-// H.264 and HEVC clamp it to 1-51 internally; AV1 carries a q_index instead and clamps to 1-255.
-// Measured on one AMD card under VAAPI, so a level costs about the same wherever it lands: against
-// H.264 the HEVC column comes out 11-19% smaller and the AV1 column 23-26%, which is the file size a
-// user changing codec is really asking about.
 struct SCodecQuality final
 {
 	int globalQuality;
-
-	// Bits per pixel per frame, times ten thousand. Measured on one AMD card under VAAPI; content
-	// moves it by half again either way, which is why the window says "up to".
 	int bitsPerPixel;
 };
 
@@ -44,7 +36,6 @@ struct SQualityEntry final
 	SCodecQuality    hevc;
 	SCodecQuality    av1;
 
-	// AAC, which is the only audio codec MP4 and Matroska get from the pinned LGPL FFmpeg.
 	int audioBitsPerSecond;
 };
 
@@ -144,8 +135,6 @@ inline constexpr int ResolveGlobalQuality(ECodec codec, EQuality quality)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// An upper bound: the rate assumed here is the ceiling the compositor will ever deliver, and a screen
-// only produces frames where it changes.
 inline constexpr uint64_t EstimateBitsPerSecond(ECodec codec, EQuality quality, uint32_t width,
                                                 uint32_t height, uint32_t framesPerSecond)
 {
@@ -155,7 +144,6 @@ inline constexpr uint64_t EstimateBitsPerSecond(ECodec codec, EQuality quality, 
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Zero reads as "unset" inside the encoder, which silently swaps in the codec's own default.
 consteval bool IsQualityLadderComplete()
 {
 	bool complete{ true };
@@ -178,5 +166,6 @@ consteval bool IsQualityLadderComplete()
 	return complete;
 }
 
-static_assert(IsQualityLadderComplete(), "a quality level is missing a name, a codec's value or its audio rate");
+static_assert(IsQualityLadderComplete(), "a quality level lacks a name, a codec's value or its audio rate; "
+                                         "a zero would give the codec's own default");
 } // namespace Klip::Encode

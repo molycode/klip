@@ -51,6 +51,7 @@ std::string MakeHandleToken()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// A portal answers on a Request object at this path, so its Response can be subscribed before the call.
 std::string GetRequestPath(sd_bus* pBus, std::string_view token)
 {
 	char const* pUniqueName{ nullptr };
@@ -109,6 +110,7 @@ int AppendValue(sd_bus_message* pMessage, SOption const& option)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// The visitor reads the variant of each key it wants and answers true; every other entry is skipped.
 int ReadDict(sd_bus_message* pMessage, DictVisitor const& visitor)
 {
 	int result{ sd_bus_message_enter_container(pMessage, 'a', "{sv}") };
@@ -146,6 +148,7 @@ int ReadDict(sd_bus_message* pMessage, DictVisitor const& visitor)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// The portal hands some values over as a string and some as an object path.
 bool ReadString(sd_bus_message* pMessage, std::string& value)
 {
 	char type{ 0 };

@@ -20,13 +20,10 @@ public:
 	bool Initialize();
 	void Terminate();
 
-	// Synchronous: it round-trips the server, so the lists are current when it returns.
 	void Refresh();
 
 	std::vector<SAudioDevice> const& GetSinks() const;
 
-	// Every input. The server's own default source is deliberately not consulted: it was measured
-	// pointing at a sink, which would silently record system audio through a microphone toggle.
 	std::vector<SAudioDevice> const& GetSources() const;
 
 private:

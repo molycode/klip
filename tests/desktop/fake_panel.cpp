@@ -47,6 +47,7 @@ std::string ReadUpdatedLabel(sd_bus_message* pMessage)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// On a connection and a thread of its own; what it records is touched only there, so accessors use Run.
 bool CFakePanel::Initialize()
 {
 	bool initialized{ false };

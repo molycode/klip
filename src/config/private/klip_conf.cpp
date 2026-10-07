@@ -179,6 +179,7 @@ JsonValue Convert(EKind kind, std::string const& text)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// For ReadSettingsJson to judge, so a value Klip could not have written fails its check there.
 std::string ConvertKlipConf(std::string_view text)
 {
 	JsonValue        root = JsonValue::object();

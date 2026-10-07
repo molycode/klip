@@ -10,7 +10,6 @@
 
 namespace Klip::Tests
 {
-// org.freedesktop.FileManager1 on a connection and a thread of its own; what it records is touched only there.
 class CFakeFileManager final : private Tge::SNoCopyNoMove
 {
 public:
@@ -21,10 +20,8 @@ public:
 	bool Initialize();
 	void Terminate();
 
-	// The URIs every ShowItems call named, oldest first.
 	std::vector<std::string> TakeShown();
 
-	// sd-bus calls this; public only so its plain function pointer can reach it.
 	int OnShowItems(sd_bus_message* pCall);
 
 private:

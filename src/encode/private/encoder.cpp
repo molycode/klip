@@ -54,6 +54,7 @@ SRegion ResolveRegion(SSettings const& settings)
 {
 	SRegion region{ settings.region };
 
+	// A zero width or height means the whole frame.
 	if (region.width == 0 || region.height == 0 || region.x + region.width > settings.width ||
 	    region.y + region.height > settings.height)
 	{
@@ -354,8 +355,10 @@ bool CEncoder::OpenVaapiFrames(SSettings const& settings)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Ahead of OpenEncoder: the codec must know whether the muxer wants a global header before it opens.
 bool CEncoder::OpenContainer(SSettings const& settings)
 {
+	// The muxer is chosen by outputPath's extension.
 	int const allocResult{ avformat_alloc_output_context2(&m_pFormatContext, nullptr, nullptr,
 	                                                      settings.outputPath.c_str()) };
 
@@ -458,6 +461,7 @@ bool CEncoder::OpenEncoder(SSettings const& settings)
 // a failed avformat_write_header would do.
 bool CEncoder::OpenAudioEncoder(SSettings const& settings)
 {
+	// Zero records no sound; two are mixed into one track.
 	if (settings.audio.numSources > 0)
 	{
 		AVCodec const* pCodec{ avcodec_find_encoder(AV_CODEC_ID_AAC) };
@@ -659,6 +663,7 @@ bool CEncoder::Initialize(SSettings const& settings)
 	m_outputWidth = m_region.width;
 	m_outputHeight = m_region.height;
 	m_pVideoPacket = av_packet_alloc();
+	// Holds the newest video packet until the next one says how long it lasts.
 	m_pHeldPacket = av_packet_alloc();
 	m_pAudioPacket = av_packet_alloc();
 	m_pDrmFrame = av_frame_alloc();
@@ -697,6 +702,7 @@ bool CEncoder::Initialize(SSettings const& settings)
 			}
 		}
 
+		// The recording's zero point, from the first video frame, so both streams share an epoch.
 		m_firstTimestampNs = settings.firstTimestampNs;
 		m_hasFirstTimestamp = settings.firstTimestampNs != 0;
 
@@ -975,6 +981,7 @@ bool CEncoder::SubmitAudio(uint32_t source, Capture::SAudioBuffer const& buffer)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// numSamples must not exceed the codec's frame size: that is what the frames are sized for.
 bool CEncoder::EncodeMixedFrame(int numSamples)
 {
 	TGE_PROFILE_SCOPE_N("Audio: mix");
@@ -1090,6 +1097,8 @@ void CEncoder::FinishAudio()
 		DrainPackets(m_pAudioCodecContext, m_pAudioStream, m_pAudioPacket);
 
 		{
+			// Around av_interleaved_write_frame alone: held across an encode, it would put a GPU wait on the thread that
+			// must hand a PipeWire buffer straight back.
 			std::lock_guard<std::mutex> const muxGuard{ m_muxMutex };
 			av_interleaved_write_frame(m_pFormatContext, nullptr);
 		}
@@ -1458,6 +1467,8 @@ bool CEncoder::SubmitFrame(Capture::SFrame const& frame)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// The file is not playable until this writes the trailer. endTimestampNs holds the last frame until then, so a
+// screen that stopped changing does not shorten the recording; zero gives it a nominal frame's length.
 bool CEncoder::Finish(uint64_t endTimestampNs)
 {
 	TGE_PROFILE_SCOPE_N("Stop: finish");

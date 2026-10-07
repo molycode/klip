@@ -15,6 +15,7 @@ namespace Klip::Bus
 CConnection gConnection;
 
 //////////////////////////////////////////////////////////////////////////
+// sd-bus is not thread-safe, so the bus is touched only on its own thread, by tasks whose calls are synchronous.
 bool CConnection::Initialize(std::string_view threadName)
 {
 	bool initialized{ false };
@@ -64,6 +65,7 @@ bool CConnection::Initialize(std::string_view threadName)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Runs everything posted before it first.
 void CConnection::Terminate()
 {
 	if (m_pBus != nullptr)
@@ -91,6 +93,7 @@ void CConnection::Post(Task task)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Returns once the task, and whatever it pulled off the bus, has been dispatched. Never from the bus thread.
 void CConnection::Run(Task task)
 {
 	TGE_ASSERT(!m_loop.IsLoopThread(), "Run on the bus thread waits for itself");

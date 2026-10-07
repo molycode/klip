@@ -26,6 +26,7 @@ std::string FormatBytes(uint64_t bytes)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Both empty until enough has been written for a rate to mean anything.
 SThroughput FormatThroughput(uint64_t bytes, std::chrono::seconds elapsed)
 {
 	SThroughput result;

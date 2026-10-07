@@ -6,6 +6,7 @@
 namespace Klip::Tests
 {
 //////////////////////////////////////////////////////////////////////////
+// tge-core comes up once around the whole suite, as it does around the application.
 void CTgeEnvironment::SetUp()
 {
 	Tge::Logging::CLogSystem& logSystem{ Tge::Logging::GetLogSystem() };

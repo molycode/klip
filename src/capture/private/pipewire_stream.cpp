@@ -435,6 +435,7 @@ void CStreamImpl::HandleProcess()
 
 			if (pCrop != nullptr && spa_meta_region_is_valid(pCrop))
 			{
+				// A window capture is padded out to a larger buffer, and the padding is not part of the frame.
 				frame.cropX = static_cast<uint32_t>(pCrop->region.position.x);
 				frame.cropY = static_cast<uint32_t>(pCrop->region.position.y);
 				frame.cropWidth = pCrop->region.size.width;
@@ -467,6 +468,7 @@ void CStreamImpl::HandleProcess()
 
 			if (callback)
 			{
+				// On the PipeWire thread; the pixels die when it returns.
 				callback(frame);
 			}
 		}
@@ -487,6 +489,7 @@ void CStreamImpl::HandleProcess()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Takes ownership of pipeWireFd. maxFrameRate is a ceiling asked of the compositor, zero for none.
 bool CPipeWireStream::Initialize(int pipeWireFd, uint32_t nodeId, uint32_t maxFrameRate,
                                  FrameCallback callback, EndedCallback onEnded)
 {
@@ -650,6 +653,7 @@ uint32_t CPipeWireStream::GetHeight() const
 }
 
 //////////////////////////////////////////////////////////////////////////
+// What the compositor settled on: the display's refresh rate when no ceiling was asked for.
 uint32_t CPipeWireStream::GetMaxFrameRate() const
 {
 	return m_pImpl != nullptr ? m_pImpl->negotiatedMaxFrameRate.load(std::memory_order_relaxed) : 0;

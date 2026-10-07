@@ -9,7 +9,6 @@
 
 namespace Klip::Json
 {
-// A SAX handler that builds nothing and keeps the parser's error; nlohmann's SAX interface names its methods.
 class CSyntaxErrorHandler final : private Tge::SNoCopyNoMove
 {
 public:

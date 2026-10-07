@@ -16,17 +16,13 @@ class CAudioStream final : private Tge::SNoCopyNoMove
 {
 public:
 
-	// Fires on the audio thread, once per buffer.
 	using BufferCallback = std::function<void(SAudioBuffer const&)>;
 
-	// At most once, on the same thread.
 	using EndedCallback = std::function<void()>;
 
 	CAudioStream() = default;
 	~CAudioStream() = default;
 
-	// Returns only once the server has answered with a format: a connected stream whose device never
-	// arrives waits forever, and the muxer needs the answer before it writes its header.
 	bool Initialize(SAudioDevice const& device, BufferCallback callback, EndedCallback onEnded);
 	void Terminate();
 

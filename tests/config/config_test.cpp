@@ -8,6 +8,7 @@
 namespace Klip::Tests
 {
 //////////////////////////////////////////////////////////////////////////
+// A home of its own with the config home inside it, so no test touches the real settings.
 void CConfigTest::SetUp()
 {
 	std::error_code error{};

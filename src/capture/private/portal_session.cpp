@@ -105,12 +105,15 @@ int ReadStreams(sd_bus_message* pMessage, std::vector<SPortalStream>& streams)
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////
+// A screen is the same screen next time, so its grant is always worth keeping; which window is a fresh
+// question unless someone says otherwise.
 bool KeepsGrant(ESourceType source, bool rememberWindow)
 {
 	return source == ESourceType::Screen || rememberWindow;
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Runs on Bus::gConnection's thread, where its callbacks fire too.
 bool CPortalSession::Initialize(ClosedCallback onClosed)
 {
 	TGE_PROFILE_SCOPE_N("Portal: initialize");
@@ -157,6 +160,7 @@ void CPortalSession::Probe(sd_bus* pBus)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// No callback fires once this returns.
 void CPortalSession::Terminate()
 {
 	Bus::gConnection.Run([this](sd_bus* pBus) {
@@ -172,6 +176,7 @@ void CPortalSession::Terminate()
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Idempotent; a later Start opens a fresh session.
 void CPortalSession::Close()
 {
 	Bus::gConnection.Post([this](sd_bus* pBus) { CloseSession(pBus); });
@@ -266,6 +271,7 @@ void CPortalSession::Begin(sd_bus* pBus, ResultCallback callback)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Subscribes before the call goes out; the portal can answer first.
 bool CPortalSession::Request(sd_bus* pBus, EStep step, char const* pMember,
                              std::function<int(sd_bus_message*, std::string const& token)> const& fill)
 {
@@ -450,6 +456,7 @@ void CPortalSession::OnStarted(sd_bus* pBus, sd_bus_message* pResults)
 
 		if (key == "restore_token")
 		{
+			// A token is spent by the request that carries it, so this replaces it even if the recording fails to start.
 			consumed = Bus::ReadString(pEntry, grant.restoreToken);
 		}
 		else if (key == "streams")
@@ -479,6 +486,7 @@ void CPortalSession::OnStarted(sd_bus* pBus, sd_bus_message* pResults)
 	else
 	{
 		grant.stream.nodeId = streams.front().nodeId;
+		// The logical layout size, which Mutter streams at too, so a scaled display records scaled.
 		grant.stream.width = static_cast<uint32_t>(streams.front().width);
 		grant.stream.height = static_cast<uint32_t>(streams.front().height);
 
@@ -509,6 +517,7 @@ void CPortalSession::OpenRemote(sd_bus* pBus, SPortalGrant grant)
 	else
 	{
 		// The reply closes its own copy when it goes.
+		// The receiver owns it from here and must close it.
 		grant.pipeWireFd = fcntl(descriptor, F_DUPFD_CLOEXEC, 3);
 
 		if (grant.pipeWireFd < 0)
