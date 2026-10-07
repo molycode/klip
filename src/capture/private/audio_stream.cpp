@@ -6,6 +6,7 @@
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
 #include <spa/pod/builder.h>
+#include <tge/non_copyable.hpp>
 #include <tge/profiling/profiling.hpp>
 
 #include <algorithm>
@@ -23,7 +24,7 @@ constexpr uint32_t SampleRate{ 48000 };
 constexpr int64_t FormatTimeoutNs{ 300000000 };
 } // namespace
 
-class CAudioImpl final
+class CAudioImpl final : private Tge::SNoCopyNoMove
 {
 public:
 

@@ -3,6 +3,7 @@
 #include "log.hpp"
 
 #include <pipewire/pipewire.h>
+#include <tge/non_copyable.hpp>
 #include <tge/profiling/profiling.hpp>
 
 #include <algorithm>
@@ -16,7 +17,7 @@ namespace
 constexpr int64_t SyncTimeoutNs{ 500000000 };
 } // namespace
 
-class CDevicesImpl final
+class CDevicesImpl final : private Tge::SNoCopyNoMove
 {
 public:
 

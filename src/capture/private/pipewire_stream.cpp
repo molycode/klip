@@ -7,6 +7,7 @@
 #include <spa/buffer/meta.h>
 #include <spa/param/video/format-utils.h>
 #include <spa/pod/builder.h>
+#include <tge/non_copyable.hpp>
 #include <tge/profiling/profiling.hpp>
 
 #include <algorithm>
@@ -18,7 +19,7 @@
 
 namespace Klip::Capture
 {
-class CStreamImpl final
+class CStreamImpl final : private Tge::SNoCopyNoMove
 {
 public:
 
