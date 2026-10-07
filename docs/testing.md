@@ -169,6 +169,28 @@ Check the build reached a binary before believing it. And a transitive include i
 absent: `qToBigEndian` compiled on every machine it was tried on, behind a header Qt 6.10 supplies and
 Qt 6.4 does not, until a build against Qt 6.4 ran.
 
+## The release package
+
+```bash
+scripts/build_release.sh && scripts/make_package.sh && scripts/check_package.sh
+```
+
+The build refuses its own result rather than shipping it: SDL without a backend it needs, an FFmpeg configured
+with anything GPL, LGPLv3 or non-free or missing an encoder, muxer or filter Klip uses, a glibc symbol newer than
+2.35, a NEEDED library that neither every PipeWire-1.0 distribution has nor the package carries, or a runpath that
+is not `$ORIGIN`. The check then installs the package in clean containers, runs `ldd -r` on every file, which
+resolves each symbol, and uninstalls it with both uninstallers.
+
+**Building against a newer library than the oldest target runs is the drift to watch.** A call added in between
+links fine and fails at load. The first package FFmpeg built against AlmaLinux 9's libva 2.22 called
+`vaMapBuffer2`, which Ubuntu 24.04's libva 2.20 lacks; FFmpeg picks that call from the libva headers it compiles
+against, so the build now compiles against libva 2.20's. PipeWire is the same shape -- 1.4 there, 1.0.5 on Ubuntu
+24.04 -- with nothing to pin, and `ldd -r` in `ubuntu:24.04` is what would catch it, so that image stays in the
+check.
+
+A container has no portal and no graphics card, so nothing there records. Install the package and run the smoke
+test against `~/.local/bin/klip`: that is the only check of the FFmpeg the package carries actually encoding.
+
 ## What none of them cover
 
 FFmpeg, PipeWire, Mesa and the Wayland and X11 libraries are compiled elsewhere, so a sanitizer sees an

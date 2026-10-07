@@ -7,6 +7,23 @@ Linux first. Windows once Linux is proven.
 
 ![The Klip window, with live level meters for system audio and a microphone](docs/screenshot.png)
 
+## Install
+
+Download `klip-<version>-x86_64.tar.xz` and its `.sha256` from the
+[releases page](https://github.com/molycode/klip/releases), then:
+
+```bash
+sha256sum -c klip-<version>-x86_64.tar.xz.sha256
+tar xf klip-<version>-x86_64.tar.xz
+cd klip-<version>-x86_64
+./install.sh
+```
+
+It installs for your user under `~/.local`, adds Klip to the applications menu, and needs no root. The
+package runs on x86-64 Linux with glibc 2.35 and PipeWire 1.0 or newer: Ubuntu 24.04, Debian 13, Fedora,
+Arch Linux, AlmaLinux 9 and later. Its `README.txt` covers upgrading and uninstalling. To build Klip
+yourself instead, see [Building](#building).
+
 ## Before you record
 
 **Settle the window's size first.** A window is recorded at the size it had when the recording started,
@@ -159,6 +176,15 @@ which keeps the generator and the build type that configuring by hand would drop
 cmake --preset linux-gcc-debug -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_C_COMPILER=gcc-14
 ```
 
+### Release packages
+
+`scripts/build_release.sh` builds the distributable binary, and the LGPL FFmpeg it carries, in an AlmaLinux 9
+container, so that it runs on anything with glibc 2.35 and PipeWire 1.0. FFmpeg comes from its release tarball,
+checked against a pinned SHA-256 and kept in `dist/` for the release to publish beside the package.
+`scripts/make_package.sh` then wraps the build into `dist/klip-<version>-x86_64.tar.xz` and its `.sha256`, with a
+menu entry, an icon and an `install.sh` that installs to `~/.local`, and `scripts/check_package.sh` installs,
+resolves and uninstalls that package in clean containers of the distributions it supports. They need Docker.
+
 ## Checking a recording
 
 `scripts/smoke_test.py` records the screen for a few seconds with nothing clicked, then gates the file it
@@ -190,8 +216,9 @@ external/json       nlohmann/json (submodule)
 external/sdl        SDL 3, the window and its events (submodule, compiled in statically)
 external/imgui      Dear ImGui, what the window draws (submodule)
 external/googletest the test framework (submodule, only built with the tests)
-assets/             the icon font, and the licences of both fonts and of what SDL bundles
-scripts/            the FFmpeg build helper, the floor build, the smoke test, the sanitizer triage tools
+assets/             the icon font, and the licence texts the About dialog shows that no submodule carries
+scripts/            the FFmpeg build helper, the floor build, the smoke test, the sanitizer triage tools,
+                    the release build, its package and its check
 docs/               the screenshot, what measurement taught, and how the checks are run
 ```
 
