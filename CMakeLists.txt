@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.30.0)
 
-project(Klip VERSION 1.0.0 LANGUAGES C CXX)
+project(Klip VERSION 1.1.0 LANGUAGES C CXX)
 
 # C is here for tge-core's rpmalloc, not for Klip's own code.
 if(PROJECT_IS_TOP_LEVEL)
