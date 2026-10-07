@@ -70,9 +70,9 @@ python3 scripts/valgrind_triage.py vg.log
 
 `TGE_ENABLE_GLOBAL_ALLOCATOR=OFF` is not optional. tge-core routes `new` and `delete` through rpmalloc,
 which takes its pages from `mmap`, and memcheck then watches an allocator it cannot look into and reports
-almost nothing. Check with `nm -C <binary> | grep "T operator delete"`: it must print nothing. The
-sanitizers do not need the flag, because their own runtimes define those operators and the linker never
-pulls tge-core's object out of the archive.
+almost nothing. Check with `nm -C <binary> | grep "T operator delete"`: it must print nothing. A
+`KLIP_SANITIZER` build forces the flag off itself for ASan and TSan, which are blind to rpmalloc for the
+same reason.
 
 Memcheck is the only one of these with reach into FFmpeg, PipeWire, Qt and Mesa: it instruments at run
 time, so an access performed inside them is checked like any other. It is also cheaper here than its

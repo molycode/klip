@@ -33,8 +33,8 @@ if(NOT KLIP_SANITIZER STREQUAL "none")
 	# allocation and TSan never sees the synchronisation. Forced rather than defaulted because leaving
 	# it on does not fail the build, it just makes the run quietly useless.
 	if(KLIP_SANITIZER MATCHES "^(address|thread)$")
-		set(TGE_ENABLE_MEMORY_TRACKING OFF CACHE BOOL "Enable memory tracking system" FORCE)
-		message(STATUS "[Klip] Memory tracking forced off for the ${KLIP_SANITIZER} sanitizer")
+		set(TGE_ENABLE_GLOBAL_ALLOCATOR OFF CACHE BOOL "Route global new and delete through rpmalloc" FORCE)
+		message(STATUS "[Klip] Global allocator forced off for the ${KLIP_SANITIZER} sanitizer")
 	endif()
 
 	message(STATUS "[Klip] Sanitizer enabled: ${KLIP_SANITIZER}")
